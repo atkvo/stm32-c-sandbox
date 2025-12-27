@@ -13,9 +13,9 @@ target_link_libraries(${MCU_HAL} PRIVATE
 )
 
 target_include_directories(${MCU_HAL} PUBLIC
+    inc/
     hal/inc
 )
-
 
 add_library(hal INTERFACE)
 

@@ -3,13 +3,10 @@
 #include <stddef.h>
 #include "gpio.h"
 #include "stm32f411xe.h"
+#include "bit_utils.h"
 
 #define GPIO_MAX_PORTS        (6)
 #define GPIO_MAX_PIN_PER_PORT (16)
-
-#define MASK_CREATE(bits) ((1 << (bits)) - 1)
-#define BIT_IS_SET(x, idx) ((x) & (1 << (idx)))
-#define BIT(idx) ((1 << (idx)))
 
 typedef struct gpio_pin_ctx {
     volatile GPIO_TypeDef *port_ptr;
@@ -102,11 +99,11 @@ static inline void gpio_mode_set(gpio_pin_handle_t handle, gpio_mode_t mode) {
 
     const uint8_t mode_field_bit_width = 2;
     const uint8_t mode_field_pos = handle->pin_index * mode_field_bit_width;
-    const uint32_t mode_mask = (MASK_CREATE(mode_field_bit_width) << mode_field_pos);
+    const uint32_t mode_mask = (BIT_MASK_CREATE(mode_field_bit_width) << mode_field_pos);
 
     uint32_t reg_value = handle->port_ptr->MODER;
     reg_value &= ~mode_mask;
-    reg_value |= ((mode & MASK_CREATE(mode_field_bit_width))<< mode_field_pos);
+    reg_value |= ((mode & BIT_MASK_CREATE(mode_field_bit_width))<< mode_field_pos);
 
     handle->port_ptr->MODER = reg_value;
 }
@@ -127,7 +124,7 @@ static inline void gpio_pupd_set(gpio_pin_handle_t handle, gpio_pupd_mode_t mode
     static_assert(GPIO_PUPD_PULLDOWN == 0x2, "Unexpected gpio pu/pd mode value");
 
     const uint8_t bits_per_mode_control = 2;
-    const uint8_t mask = MASK_CREATE(bits_per_mode_control);
+    const uint8_t mask = BIT_MASK_CREATE(bits_per_mode_control);
     const uint8_t mode_index = handle->pin_index * bits_per_mode_control;
 
     uint32_t value = handle->port_ptr->PUPDR;
@@ -143,7 +140,7 @@ static inline void gpio_af_set(gpio_pin_handle_t handle, uint8_t af_mode) {
         &handle->port_ptr->AFR[1];
 
     const uint8_t af_bits_per_pin = 4;
-    const uint8_t af_mask = MASK_CREATE(af_bits_per_pin);
+    const uint8_t af_mask = BIT_MASK_CREATE(af_bits_per_pin);
     const uint8_t af_pos = (handle->pin_index % pins_per_af_reg)* af_bits_per_pin;
 
     // clear then set
@@ -161,7 +158,7 @@ static inline void gpio_speed_set(gpio_pin_handle_t handle, gpio_speed_t speed) 
     static_assert(GPIO_SPEED_HIGH == 0x3, "Unexpected gpio speed mode value");
 
     const uint8_t bits_per_pin = 2;
-    const uint32_t mask = MASK_CREATE(bits_per_pin);
+    const uint32_t mask = BIT_MASK_CREATE(bits_per_pin);
     const uint32_t field_pos = handle->pin_index * bits_per_pin;
 
     uint32_t value = handle->port_ptr->OSPEEDR;
