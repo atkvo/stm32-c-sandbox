@@ -1,5 +1,3 @@
-> todo: update me!
-
 # STM32 SANDBOX
 
 This project is just intended to become more familiar with the
@@ -20,8 +18,6 @@ The initial STM32 development board is the [WeAct Black Pill V2.0](https://stm32
 
 ```
 git clone {repo}
-git submodule init
-git submodule update
 ```
 
 ## Requirements
@@ -84,7 +80,7 @@ tar -xf /opt
 # create a build folder for an out of source build
 mkdir build
 cd build
-cmake .. -DCMAKE_TOOLCHAIN_FILE=../arm-none-eabi-gcc.cmake
+cmake .. -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-none-eabi-gcc.cmake
 make
 ```
 
@@ -116,10 +112,10 @@ Flashing instructions here: https://openocd.org/doc/html/Flash-Programming.html
 
 ```sh
 # start the open ocd instance from the shell with the proper debugger/board configuration
-openocd -f /opt/homebrew/Cellar/open-ocd/0.12.0/share/openocd/scripts/interface/stlink-v2-1.cfg -f /opt/homebrew/Cellar/open-ocd/0.12.0/share/openocd/scripts/target/stm32f4x.cfg
+openocd -f interface/stlink-v2-1.cfg -f target/stm32f4x.cfg
 
 # in a separate shell instance, telnet into the openocd server
-telnet localhost:4444
+telnet localhost 4444
 
 # from the telnet session
 targets     # use this to see run state of MCU
@@ -130,7 +126,7 @@ program test.elf verify reset
 #### One Liner
 
 ```sh
-openocd -f /opt/homebrew/Cellar/open-ocd/0.12.0/share/openocd/scripts/interface/stlink-v2-1.cfg -f /opt/homebrew/Cellar/open-ocd/0.12.0/share/openocd/scripts/target/stm32f4x.cfg -c "program stm32-sandbox.elf verify reset"
+openocd -f interface/stlink-v2-1.cfg -f scripts/target/stm32f4x.cfg -c "program stm32-sandbox.elf verify reset"
 ```
 
 ### Debug GDB
