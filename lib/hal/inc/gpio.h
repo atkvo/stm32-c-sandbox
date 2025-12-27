@@ -45,7 +45,7 @@ typedef enum {
  * @brief gpio_port_t
  */
 typedef enum {
-    GPIO_PORT_A,
+    GPIO_PORT_A = 0,
     GPIO_PORT_B,
     GPIO_PORT_C,
     GPIO_PORT_D,
@@ -55,23 +55,89 @@ typedef enum {
     GPIO_PORT_H,
 } gpio_port_t;
 
-struct gpio_port_ctx;
-typedef struct gpio_port_ctx *gpio_port_handle_t;
-
-gpio_port_handle_t gpio_handle_acquire(gpio_port_t port);
-void gpio_handle_release(gpio_port_handle_t handle);
-
-/* maybe this isn't required - or maybe just supply a configuration
- * like gpio_port_config_t
+/**
+ * @brief GPIO configuration field
+ *
+ * Caller is expected to set the appropriate fields
+ * depending on the `gpio_mode_t` requested
  */
-void gpio_init(gpio_port_handle_t handle);
+typedef struct {
+    gpio_mode_t mode;
+    gpio_pupd_mode_t pupd;
 
-void gpio_set_mode(gpio_port_handle_t handle, gpio_mode_t mode);
-void gpio_set_output_mode(gpio_port_handle_t handle, gpio_output_mode_t mode);
-void gpio_set_pupd(gpio_port_handle_t handle, gpio_pupd_mode_t mode);
+    union {
+        struct {
+            gpio_speed_t speed;
+            gpio_output_mode_t output_mode;
+        } output;
+        struct {
+            /* nothing to configure */
+        } input;
+        struct {
+            gpio_speed_t speed;
+            gpio_output_mode_t output_mode;
+            uint8_t af_mode;
+        } af;
+    };
+} gpio_pin_config_t;
 
-bool gpio_read_pin(gpio_port_handle_t handle, uint8_t pin_index);
-uint32_t gpio_read_port(gpio_port_handle_t handle);
+/**
+ * @brief GPIO pin context struct to be defined by
+ * implementating module.
+ */
+struct gpio_pin_ctx;
 
-uint32_t gpio_write_pin(gpio_port_handle_t handle, bool state);
-uint32_t gpio_write_port(gpio_port_handle_t handle, uint32_t value);
+/**
+ * @brief GPIO pin handle
+ */
+typedef struct gpio_pin_ctx *gpio_pin_handle_t;
+
+/**
+ * @brief Acquire a GPIO pin handle
+ *
+ * Caller will now own the GPIO pin handle after this. Any subsequent
+ * calls to the same GPIO pin handle will result in NULL being returned
+ *
+ * @param port - GPIO port
+ * @param pin - GPIO pin
+ *
+ * @return handle to port-pin if valid
+ * @return NULL if invalid
+ */
+gpio_pin_handle_t gpio_pin_acquire(gpio_port_t port, uint8_t pin_index);
+
+/**
+ * @brief Release a GPIO pin handle
+ *
+ * @param handle
+ *
+ * @return none
+ */
+void gpio_pin_release(gpio_pin_handle_t handle);
+
+/**
+ * @brief Configure a GPIO pin
+ *
+ * @param handle - pin to configure
+ * @param cfg - configuration to apply to GPIO pin
+ *
+ * @return none
+ */
+void gpio_pin_configure(gpio_pin_handle_t handle, gpio_pin_config_t cfg);
+
+/**
+ * @brief Read a GPIO pin
+ *
+ * @return true if pin is high
+ * @return false if pin is low
+bool gpio_pin_read(gpio_pin_handle_t handle);
+
+/**
+ * @brief Write a value to GPIO pin
+ *
+ * @param handle
+ * @param state - value to set to pin
+ *
+ * @return none
+ */
+void gpio_pin_write(gpio_pin_handle_t handle, bool state);
