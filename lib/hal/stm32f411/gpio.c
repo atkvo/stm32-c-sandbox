@@ -76,8 +76,8 @@ gpio_pin_handle_t gpio_pin_acquire(gpio_port_t port, uint8_t pin_index) {
     }
 
     const uint8_t pool_idx = port_to_pool(port);
-    if (!BIT_IS_SET(gpio_port_pool[pool_idx].taken_map, pool_idx)) {
-        gpio_port_pool[pool_idx].taken_map = BIT(pool_idx);
+    if (!BIT_IS_SET(gpio_port_pool[pool_idx].taken_map, pin_index)) {
+        gpio_port_pool[pool_idx].taken_map = BIT(pin_index);
 
         gpio_pin_ctx_t *pin_ctx = &gpio_port_pool[pool_idx].pins[pin_index];
         pin_ctx->pool_idx = pool_idx;
@@ -93,9 +93,10 @@ gpio_pin_handle_t gpio_pin_acquire(gpio_port_t port, uint8_t pin_index) {
 
 static inline void gpio_mode_set(gpio_pin_handle_t handle, gpio_mode_t mode) {
 
-    static_assert(GPIO_PUPD_NONE == 0x0, "Unexpected gpio mode value");
-    static_assert(GPIO_PUPD_PULLUP == 0x1, "Unexpected gpio mode value");
-    static_assert(GPIO_PUPD_PULLDOWN == 0x2, "Unexpected gpio mode value");
+    static_assert(GPIO_MODE_INPUT == 0x0, "Unexpected gpio mode value");
+    static_assert(GPIO_MODE_OUTPUT == 0x1, "Unexpected gpio mode value");
+    static_assert(GPIO_MODE_ALTERNATE == 0x2, "Unexpected gpio mode value");
+    static_assert(GPIO_MODE_ANALOG == 0x3, "Unexpected gpio mode value");
 
     const uint8_t mode_field_bit_width = 2;
     const uint8_t mode_field_pos = handle->pin_index * mode_field_bit_width;
