@@ -19,10 +19,6 @@ set(SOURCES
     app/main.c
 )
 
-# set(CXXFLAGS  " -Wall -std=c++17")
-# set(CFLAGS  " -Wall -std=c23")
-# set(CMAKE_C_STANDARD 23)
-# set(CMAKE_CXX_FLAGS "${CXXFLAGS}")
 set(CMAKE_C_STANDARD 23)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -38,6 +34,7 @@ target_link_libraries(${EXECUTABLE} PUBLIC
     cmsis
     ${MCU}_plat
     hal
+    driver
 )
 
 # Print executable size

@@ -173,6 +173,9 @@ void gpio_pin_configure(gpio_pin_handle_t handle, gpio_pin_config_t cfg) {
         return;
     }
 
+    // @todo: need APIs for port enable/disable
+    // or should it be automatically disabled if all pins of a GPIO
+    // are released?
     RCC->AHB1ENR |= BIT(pool_to_port(handle->pool_idx));
 
     gpio_mode_set(handle, cfg.mode);
