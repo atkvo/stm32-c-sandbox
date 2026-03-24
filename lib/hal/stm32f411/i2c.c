@@ -4,6 +4,7 @@
 #include "i2c.h"
 #include "bit_utils.h"
 #include "gpio.h"
+#include "slice.h"
 #include "stm32f411xe.h"
 
 struct i2c_ctx {
@@ -119,7 +120,7 @@ uint8_t i2c_read_reg(i2c_handle_t handle, uint8_t dev_addr, uint8_t reg_addr) {
     }
 
     uint8_t data;
-    i2c_burst_read(handle, dev_addr, reg_addr, &data, 1);
+    i2c_burst_read(handle, dev_addr, reg_addr, (slice_mutable_t) { .ptr = &data, .len = 1});
     return data;
 
 }
@@ -127,7 +128,7 @@ uint8_t i2c_read_reg(i2c_handle_t handle, uint8_t dev_addr, uint8_t reg_addr) {
 /**
  * @brief Burst write
  */
-void i2c_burst_write(i2c_handle_t handle, uint8_t dev_addr, uint8_t reg_addr, const uint8_t *data, uint16_t len) {
+void i2c_burst_write(i2c_handle_t handle, uint8_t dev_addr, uint8_t reg_addr, slice_t data) {
     if (handle == NULL) {
         return;
     }
@@ -136,9 +137,9 @@ void i2c_burst_write(i2c_handle_t handle, uint8_t dev_addr, uint8_t reg_addr, co
     i2c_addr_wait(handle, dev_addr, false);
     i2c_addr_flag_clear(handle);
 
-    for (uint32_t i = 0; i < len; i++)
+    for (uint32_t i = 0; i < data.len; i++)
     {
-        i2c_write(handle, data[i]);
+        i2c_write(handle, data.ptr[i]);
     }
 
     i2c_stop(handle);
@@ -147,7 +148,7 @@ void i2c_burst_write(i2c_handle_t handle, uint8_t dev_addr, uint8_t reg_addr, co
 /**
  * @brief Burst read
  */
-void i2c_burst_read(i2c_handle_t handle, uint8_t dev_addr, uint8_t reg_addr, uint8_t *data, uint16_t len) {
+void i2c_burst_read(i2c_handle_t handle, uint8_t dev_addr, uint8_t reg_addr, slice_mutable_t data) {
     if (handle == NULL) {
         return;
     }
@@ -161,26 +162,26 @@ void i2c_burst_read(i2c_handle_t handle, uint8_t dev_addr, uint8_t reg_addr, uin
     i2c_addr_wait(handle, dev_addr, true);
     // address flag cleared based on number of bytes read
 
-    if (len == 1) {
+    if (data.len == 1) {
         // Special case for single byte - must disable the ACK
         // before clearing the address flag to prevent extra
         // data bytes from slave
         i2c_ack_disable(handle);
         i2c_addr_flag_clear(handle);
         i2c_stop_no_wait(handle);
-        i2c_read_byte(handle, &data[0]);
+        i2c_read_byte(handle, &data.ptr[0]);
     }
     else {
         i2c_addr_flag_clear(handle);
-        for (uint16_t i = 0; i < len; i++) {
-            if (i == (len - 1)) {
+        for (uint16_t i = 0; i < data.len; i++) {
+            if (i == (data.len - 1)) {
                 // @note this would be repeated for 1 byte read also,
                 // but should not be an issue
                 i2c_ack_disable(handle);
                 i2c_stop(handle);
             }
 
-            i2c_read_byte(handle, &data[i]);
+            i2c_read_byte(handle, &data.ptr[i]);
         }
     }
 

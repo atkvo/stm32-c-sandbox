@@ -1,12 +1,14 @@
+#include <stddef.h>
+#include <stdint.h>
 #include "ssd1306.h"
 
 enum stream_types {
-    STREAM_CMD = 0x0,
-    STREAM_DATA = 0x40,
+    STREAM_TYPE_CMD = 0x0,
+    STREAM_TYPE_DATA = 0x40,
 };
 
-enum cmd_codes
-{
+// @todo: list all command codes
+enum cmd_codes {
     CMD_SET_ADDRESS_MODE     = 0x20,
     CMD_SET_CONTRAST         = 0x81,
 
@@ -34,11 +36,36 @@ enum cmd_codes
 
 };
 
-void ssd1306_init(i2c_handle_t handle, uint8_t dev_addr) {
+ssd1306_handle_t ssd1306_handle_create(
+        ssd1306_ctx_t *ctx,
+        i2c_handle_t i2c_handle,
+        uint8_t dev_addr,
+        ssd1306_display_info_t disp_info,
+        slice_mutable_t display_buffer) {
+
+    if (ctx == NULL) {
+        return NULL;
+    }
+
+    ssd1306_handle_t handle = ctx;
+    handle->i2c = i2c_handle;
+    handle->dev_addr = dev_addr;
+    handle->disp_info = disp_info;
+    handle->ram = display_buffer;
+
+    // @todo: verify if the display ram is large enough to
+    // fit the display information. If not enough then return NULL
+    //
+    // mem: [columns * (rows / page_count)]u8 = undefined,
+
+    return handle;
+}
+
+void ssd1306_init(ssd1306_handle_t handle) {
 
     // taken from https://gist.github.com/pulsar256/564fda3b9e8fc6b06b89
     const uint8_t init_stream[] = {
-        0xAE,
+        CMD_DISPLAY_OFF,
 
         0xD4, // Set Display Clock Divide Ratio / OSC Frequency
         0x80, // Display Clock Divide Ratio / OSC Frequency
@@ -73,7 +100,61 @@ void ssd1306_init(i2c_handle_t handle, uint8_t dev_addr) {
         CMD_DISPLAY_ON_RESUME, // Set all pixels OFF
         CMD_SET_DISPLAY_NORMAL, // Set display not inverted
         CMD_DISPLAY_ON, // Set display On
+
+        CMD_SET_ADDRESS_MODE, // Set horizontal address mode
+        0,
     };
 
-    i2c_burst_write(handle, dev_addr, STREAM_CMD, init_stream, sizeof(init_stream));
+
+    i2c_burst_write(handle->i2c,
+            handle->dev_addr,
+            STREAM_TYPE_CMD,
+            (slice_t){
+                .ptr = init_stream,
+                .len = sizeof(init_stream)
+                });
+}
+
+static inline void reset_cursor(ssd1306_handle_t h) {
+    const uint8_t reset_cursor[] = {
+        CMD_SET_COL_ADDRESS,
+        0,
+        h->disp_info.columns,
+        CMD_SET_PAGE_ADDRESS,
+        0x0,
+        (h->disp_info.rows / 8) - 1,
+    };
+
+    i2c_burst_write(
+        h->i2c,
+        h->dev_addr,
+        STREAM_TYPE_CMD,
+        (slice_t) { .ptr = reset_cursor, .len = sizeof(reset_cursor) });
+}
+
+void ssd1306_update(ssd1306_handle_t h) {
+    if (h == NULL) {
+        return;
+    }
+
+    reset_cursor(h);
+
+    i2c_burst_write(
+        h->i2c,
+        h->dev_addr,
+        STREAM_TYPE_DATA,
+        (slice_t) { .ptr = h->ram.ptr, .len = h->ram.len });
+}
+
+void ssd1306_display_state_set(ssd1306_handle_t h, bool on) {
+    const uint8_t cmd[] = {
+        STREAM_TYPE_CMD,
+        on ? CMD_DISPLAY_ON : CMD_DISPLAY_OFF,
+    };
+
+    i2c_burst_write(
+        h->i2c,
+        h->dev_addr,
+        STREAM_TYPE_DATA,
+        (slice_t) { .ptr = cmd, .len = sizeof(cmd) });
 }

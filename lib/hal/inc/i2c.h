@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include "gpio.h"
+#include "slice.h"
 
 typedef enum {
     I2C_WRITE = 0,
@@ -35,5 +36,5 @@ uint8_t i2c_read_reg(i2c_handle_t handle, uint8_t dev_addr, uint8_t reg_addr);
 /**
  * @brief Burst read/write
  */
-void i2c_burst_write(i2c_handle_t handle, uint8_t dev_addr, uint8_t reg_addr, const uint8_t *data, uint16_t len);
-void i2c_burst_read(i2c_handle_t handle, uint8_t dev_addr, uint8_t reg_addr, uint8_t *data, uint16_t len);
+void i2c_burst_write(i2c_handle_t handle, uint8_t dev_addr, uint8_t reg_addr, slice_t data);
+void i2c_burst_read(i2c_handle_t handle, uint8_t dev_addr, uint8_t reg_addr, slice_mutable_t data);
