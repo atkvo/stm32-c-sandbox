@@ -136,6 +136,7 @@ void i2c_burst_write(i2c_handle_t handle, uint8_t dev_addr, uint8_t reg_addr, sl
     i2c_start(handle);
     i2c_addr_wait(handle, dev_addr, false);
     i2c_addr_flag_clear(handle);
+    i2c_write(handle, reg_addr);
 
     for (uint32_t i = 0; i < data.len; i++)
     {
