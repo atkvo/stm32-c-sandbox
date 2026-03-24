@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stddef.h>
 #include <stdint.h>
 #include "ssd1306.h"
@@ -36,6 +37,14 @@ enum cmd_codes {
 
 };
 
+static inline void send_cmd(ssd1306_handle_t handle, slice_t cmd) {
+    // @info This function assumes handle has already been validated
+    i2c_burst_write(handle->i2c,
+            handle->dev_addr,
+            STREAM_TYPE_CMD,
+            cmd);
+}
+
 ssd1306_handle_t ssd1306_handle_create(
         ssd1306_ctx_t *ctx,
         i2c_handle_t i2c_handle,
@@ -52,11 +61,6 @@ ssd1306_handle_t ssd1306_handle_create(
     handle->dev_addr = dev_addr;
     handle->disp_info = disp_info;
     handle->ram = display_buffer;
-
-    // @todo: verify if the display ram is large enough to
-    // fit the display information. If not enough then return NULL
-    //
-    // mem: [columns * (rows / page_count)]u8 = undefined,
 
     return handle;
 }
@@ -99,27 +103,25 @@ void ssd1306_init(ssd1306_handle_t handle) {
         CMD_DISPLAY_ON_RESET, // Set all pixels OFF
         CMD_DISPLAY_ON_RESUME, // Set all pixels OFF
         CMD_SET_DISPLAY_NORMAL, // Set display not inverted
-        CMD_DISPLAY_ON, // Set display On
 
         CMD_SET_ADDRESS_MODE, // Set horizontal address mode
-        0,
+        0, // Auto increment column address and page address
+
+        CMD_DISPLAY_ON, // Set display On
     };
 
-
-    i2c_burst_write(handle->i2c,
-            handle->dev_addr,
-            STREAM_TYPE_CMD,
-            (slice_t){
+    send_cmd(handle,
+            (slice_t) {
                 .ptr = init_stream,
                 .len = sizeof(init_stream)
-                });
+            });
 }
 
 static inline void reset_cursor(ssd1306_handle_t h) {
     const uint8_t reset_cursor[] = {
         CMD_SET_COL_ADDRESS,
         0,
-        h->disp_info.columns,
+        h->disp_info.columns - 1,
         CMD_SET_PAGE_ADDRESS,
         0x0,
         (h->disp_info.rows / 8) - 1,
@@ -148,13 +150,38 @@ void ssd1306_update(ssd1306_handle_t h) {
 
 void ssd1306_display_state_set(ssd1306_handle_t h, bool on) {
     const uint8_t cmd[] = {
-        STREAM_TYPE_CMD,
         on ? CMD_DISPLAY_ON : CMD_DISPLAY_OFF,
+    };
+
+    send_cmd(h, (slice_t) { .ptr = cmd, .len = sizeof(cmd) });
+}
+
+void ssd1306_scroll_state_set(ssd1306_handle_t h, bool on) {
+    const uint8_t cmd[] = {
+        on ? CMD_SCROLL_ACTIVATE : CMD_SCROLL_DEACTIVATE,
     };
 
     i2c_burst_write(
         h->i2c,
         h->dev_addr,
-        STREAM_TYPE_DATA,
+        STREAM_TYPE_CMD,
+        (slice_t) { .ptr = cmd, .len = sizeof(cmd) });
+}
+
+void ssd1306_scroll_mode_set(ssd1306_handle_t h, ssd1306_scroll_dir_t dir) {
+    // Assume that *only* these two values will be provided
+    // and assert that they are 0 and 1 to optimize with the
+    // I2C command sent to device.
+    static_assert(SSD1306_SCROLL_MODE_LEFT == 0);
+    static_assert(SSD1306_SCROLL_MODE_RIGHT == 1);
+
+    const uint8_t cmd[] = {
+        dir + CMD_SCROLL_HORIZONTAL_L
+    };
+
+    i2c_burst_write(
+        h->i2c,
+        h->dev_addr,
+        STREAM_TYPE_CMD,
         (slice_t) { .ptr = cmd, .len = sizeof(cmd) });
 }

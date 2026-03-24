@@ -30,8 +30,17 @@ ssd1306_handle_t ssd1306_handle_create(
         ssd1306_display_info_t disp_info,
         slice_mutable_t display_buffer);
 
+typedef enum {
+    SSD1306_SCROLL_MODE_LEFT = 0,
+    SSD1306_SCROLL_MODE_RIGHT = 1,
+} ssd1306_scroll_dir_t;
+
 void ssd1306_init(ssd1306_handle_t);
 
 void ssd1306_update(ssd1306_handle_t);
 
 void ssd1306_display_state_set(ssd1306_handle_t, bool on);
+
+void ssd1306_scroll_state_set(ssd1306_handle_t, bool on);
+
+void ssd1306_scroll_mode_set(ssd1306_handle_t, ssd1306_scroll_dir_t dir);
