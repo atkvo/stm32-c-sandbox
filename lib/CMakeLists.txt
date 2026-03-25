@@ -12,6 +12,8 @@ add_library(${MCU_HAL} STATIC
 
 add_library(driver STATIC
     driver/ssd1306/src/ssd1306.c
+    driver/ssd1306/src/disp_buffer.c
+    driver/ssd1306/src/font.c
 )
 
 target_include_directories(${MCU_HAL} PUBLIC

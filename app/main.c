@@ -3,13 +3,18 @@
 #include <stddef.h>
 #include "gpio.h"
 #include "i2c.h"
+#include "slice.h"
 #include "ssd1306.h"
+#include "font.h"
+#include "string.h"
+#include "disp_buffer.h"
 
 // @todo: move this out of main.c
 // maybe simple "platform_init()" to call these two?
 // platform_clock_update()
 #include "system_stm32f4xx.h"
 
+// @note: the image is a little messed up after trying to format the line width...
 static const uint8_t charizard[] = {
     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfb, 0xe3, 0xe3,
@@ -100,6 +105,14 @@ static const uint8_t charizard[] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
+enum {
+    DISP_COL = 128,
+    DISP_ROW = 64,
+    DISP_PAGES = DISP_ROW / SSD1306_PAGE_HEIGHT,
+    DISP_ADDR_TWO_TONE = 0x3c,
+    DISP_ADDR_ONE_TONE = 0x3d,
+};
+
 static void sleep(const uint32_t count) {
     for (uint32_t i = 0; i < count; i++);
 }
@@ -132,6 +145,43 @@ static void heartbeat(gpio_pin_handle_t led_pin, const uint32_t delay_count) {
     sleep(delay_count);
 }
 
+size_t cursor_from_coord(const size_t column, const size_t row) {
+    // return (DISP_COL * row) + (FONT_PX_WIDTH * column);
+    return (DISP_COL * row) + (column);
+}
+
+static void write_ascii(slice_mutable_t s, slice_t src, size_t cursor) {
+    const uint8_t *msg = src.ptr;
+
+    for (size_t i = 0; i < src.len; i++) {
+
+        font_copy_char(
+                slice_mut_view(&s.ptr[cursor], s.len - cursor),
+                msg[i]);
+
+        cursor += FONT_PX_WIDTH;
+
+        // 3. Add 1 pixel of "kerning" (space) so letters don't touch
+        if (cursor < s.len) {
+            s.ptr[cursor++] = 0x00;
+        }
+    }
+}
+
+// TODO: should all coordinates be based off of PIXEL?
+static void write_hello(slice_mutable_t s, size_t col, size_t row) {
+    const uint8_t msg[] = "HELLO";
+    // write_ascii(s, slice_view(msg, strlen(msg)), cursor_from_coord(col, row));
+    disp_write_ascii(s, col, row, slice_view(msg, strlen(msg)));
+}
+
+static void write_number(slice_mutable_t s, size_t col, size_t row, size_t num) {
+    // const uint8_t ascii = '0' + num;
+    const uint8_t ascii = '~' + num;
+    // write_ascii(s, slice_view(msg, strlen(msg)), cursor_from_coord(col, row));
+    disp_write_ascii(s, col, row, slice_view(&ascii, 1));
+}
+
 static void FATAL() {
     while (1) {}
 };
@@ -160,13 +210,6 @@ int main()
     i2c_app_config_t i2c_prop = configure_i2c();
     ssd1306_ctx_t oled_ctx;
 
-    enum {
-        DISP_COL = 128,
-        DISP_ROW = 64,
-        DISP_ADDR_TWO_TONE = 0x3c,
-        DISP_ADDR_ONE_TONE = 0x3d,
-    };
-
     uint8_t display_ram[SSD1306_GET_RAM_SIZE(DISP_COL, DISP_ROW)];
 
     ssd1306_handle_t oled_handle = ssd1306_handle_create(
@@ -188,9 +231,7 @@ int main()
         FATAL();
     }
 
-    for (size_t i = 0; i < (sizeof(charizard)); i++) {
-        oled_handle->ram.ptr[i] = charizard[i];
-    }
+    disp_clear(oled_handle->ram);
 
     enum {
         PULSE_FAST = 100000,
@@ -224,7 +265,21 @@ int main()
                 pulse_duration = PULSE_SLOW;
                 screen_init_flag = true;
 
-                // Draw charizard
+                // @todo: something wrong with this charizard image
+                disp_clear(oled_handle->ram);
+                disp_copy(oled_handle->ram, slice_view(charizard, sizeof(charizard)));
+                ssd1306_update(oled_handle);
+                sleep(800000 * 4);
+
+                disp_clear(oled_handle->ram);
+                uint8_t col = 0;
+                for (uint8_t page = 0; page < DISP_PAGES; page++) {
+                    write_number(oled_handle->ram, col, page, page);
+                    col += FONT_PX_WIDTH + 1;
+                }
+
+                write_hello(oled_handle->ram, DISP_COL - (5 * (FONT_PX_WIDTH + FONT_PX_KERNING)), 0);
+
                 ssd1306_update(oled_handle);
             }
         }
