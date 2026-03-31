@@ -86,7 +86,15 @@ make
 
 # Flashing & Debug
 
-> note: if using st-flash, flash using the binary file (`*.bin`) at the flash address (stm32f4: `0x08000000`)
+## TLDR
+> Assumes flash address at `0x08000000`
+
+```
+make flash
+```
+
+## st-flash
+> flash the binary file (`*.bin`) at the flash address (stm32f4: `0x08000000`)
 
 ```sh
 # assume current working directory is in the build output folder
