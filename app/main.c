@@ -7,7 +7,7 @@
 #include "ssd1306.h"
 #include "font.h"
 #include "string.h"
-#include "disp_buffer.h"
+#include "framebuffer.h"
 
 // @todo: move this out of main.c
 // maybe simple "platform_init()" to call these two?
@@ -172,14 +172,26 @@ static void write_ascii(slice_mutable_t s, slice_t src, size_t cursor) {
 static void write_hello(slice_mutable_t s, size_t col, size_t row) {
     const uint8_t msg[] = "HELLO";
     // write_ascii(s, slice_view(msg, strlen(msg)), cursor_from_coord(col, row));
-    disp_write_ascii(s, col, row, slice_view(msg, strlen(msg)));
+    fb_write_ascii(s, col, row, slice_view(msg, strlen(msg)));
 }
 
 static void write_number(slice_mutable_t s, size_t col, size_t row, size_t num) {
     // const uint8_t ascii = '0' + num;
     const uint8_t ascii = '~' + num;
     // write_ascii(s, slice_view(msg, strlen(msg)), cursor_from_coord(col, row));
-    disp_write_ascii(s, col, row, slice_view(&ascii, 1));
+    fb_write_ascii(s, col, row, slice_view(&ascii, 1));
+}
+
+static void splash(ssd1306_handle_t oled, uint32_t cycle_count) {
+    const uint8_t msg[] = "(^_^)";
+    fb_clear(oled->ram);
+    fb_write_ascii(oled->ram,
+            oled->disp_info.columns / 2,
+            DISP_PAGES / 2,
+            slice_view(msg, strlen(msg)));
+
+    ssd1306_update(oled);
+    sleep(cycle_count);
 }
 
 static void FATAL() {
@@ -231,7 +243,7 @@ int main()
         FATAL();
     }
 
-    disp_clear(oled_handle->ram);
+    fb_clear(oled_handle->ram);
 
     enum {
         PULSE_FAST = 100000,
@@ -266,12 +278,14 @@ int main()
                 screen_init_flag = true;
 
                 // @todo: something wrong with this charizard image
-                disp_clear(oled_handle->ram);
-                disp_copy(oled_handle->ram, slice_view(charizard, sizeof(charizard)));
-                ssd1306_update(oled_handle);
-                sleep(800000 * 4);
+                // fb_clear(oled_handle->ram);
+                // fb_copy(oled_handle->ram, slice_view(charizard, sizeof(charizard)));
+                // ssd1306_update(oled_handle);
+                // sleep(800000 * 4);
 
-                disp_clear(oled_handle->ram);
+                splash(oled_handle, 800000 * 4);
+
+                fb_clear(oled_handle->ram);
                 uint8_t col = 0;
                 for (uint8_t page = 0; page < DISP_PAGES; page++) {
                     write_number(oled_handle->ram, col, page, page);
