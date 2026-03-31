@@ -5,9 +5,9 @@
 #include "i2c.h"
 #include "slice.h"
 #include "ssd1306.h"
-#include "font.h"
 #include "string.h"
 #include "framebuffer.h"
+#include "task_display.h"
 
 // @todo: move this out of main.c
 // maybe simple "platform_init()" to call these two?
@@ -15,12 +15,14 @@
 #include "system_stm32f4xx.h"
 
 enum {
-    DISP_COL = 128,
+    DISP_COL = FB_COLUMNS,
     DISP_ROW = 64,
-    DISP_PAGES = DISP_ROW / SSD1306_PAGE_HEIGHT,
+    DISP_PAGES = FB_PAGES,
     DISP_ADDR_TWO_TONE = 0x3c,
     DISP_ADDR_ONE_TONE = 0x3d,
 };
+
+static_assert(DISP_ROW == (FB_PAGES * SSD1306_PAGE_HEIGHT), "Framebuffer page/col not expected");
 
 typedef struct i2c_app_config_t {
     i2c_handle_t handle;
@@ -28,13 +30,8 @@ typedef struct i2c_app_config_t {
     gpio_pin_handle_t scl;
 } i2c_app_config_t;
 
-static void delay(const uint32_t count) {
-    for (uint32_t i = 0; i < count; i++);
-}
-
-static void FATAL() {
-    while (1) {}
-};
+void delay(const uint32_t count);
+static void FATAL();
 
 static i2c_app_config_t configure_i2c() {
     i2c_app_config_t cfg;
@@ -47,37 +44,17 @@ static i2c_app_config_t configure_i2c() {
     return cfg;
 }
 
-static void heartbeat(gpio_pin_handle_t led_pin, const uint32_t delay_count) {
+static void heartbeat(gpio_pin_handle_t led_pin, const uint32_t cycles, const uint32_t delay_count) {
     if (led_pin == NULL) {
         return;
     }
 
-    gpio_pin_write(led_pin, 1);
-    delay(delay_count);
-    gpio_pin_write(led_pin, 0);
-    delay(delay_count);
-}
-
-static void write_hello(slice_mutable_t s, size_t col, size_t row) {
-    const uint8_t msg[] = "HELLO";
-    fb_write_ascii(s, col, row, slice_view(msg, strlen(msg)));
-}
-
-static void write_number(slice_mutable_t s, size_t col, size_t row, size_t num) {
-    const uint8_t ascii = '0' + num;
-    fb_write_ascii(s, col, row, slice_view(&ascii, 1));
-}
-
-static void splash(ssd1306_handle_t oled, uint32_t cycle_count) {
-    const uint8_t msg[] = "(^_^)";
-    fb_clear(oled->ram);
-    fb_write_ascii(oled->ram,
-            oled->disp_info.columns / 2,
-            DISP_PAGES / 2,
-            slice_view(msg, strlen(msg)));
-
-    ssd1306_update(oled);
-    delay(cycle_count);
+    for (size_t i = 0; i < cycles; i++) {
+        gpio_pin_write(led_pin, 1);
+        delay(delay_count);
+        gpio_pin_write(led_pin, 0);
+        delay(delay_count);
+    }
 }
 
 int main()
@@ -102,9 +79,9 @@ int main()
             });
 
     i2c_app_config_t i2c_prop = configure_i2c();
-    ssd1306_ctx_t oled_ctx;
 
     uint8_t display_ram[SSD1306_GET_RAM_SIZE(DISP_COL, DISP_ROW)];
+    ssd1306_ctx_t oled_ctx;
 
     ssd1306_handle_t oled_handle = ssd1306_handle_create(
             &oled_ctx,
@@ -135,42 +112,20 @@ int main()
 
     uint32_t pulse_duration = PULSE_INIT;
 
-    bool screen_init_flag = false;
-    const uint8_t heartbeat_pulses_before_init = 10;
-    uint8_t count = 0;
-    const bool ssd1306_disp_state = true;
+    heartbeat(led_pin, 10, pulse_duration);
 
-    ssd1306_display_state_set(oled_handle, ssd1306_disp_state);
-    ssd1306_scroll_state_set(oled_handle, false);
+    task_display_ctx_t ctx_display = task_display_create_ctx(oled_handle);
     while (1) {
-        heartbeat(led_pin, pulse_duration);
-
-        if (screen_init_flag == false) {
-            count++;
-        }
-
-        if (count == heartbeat_pulses_before_init) {
-            if (screen_init_flag) {
-                pulse_duration =  pulse_duration == PULSE_FAST ? PULSE_SLOW : PULSE_FAST;
-            }
-            else {
-                ssd1306_init(oled_handle);
-                pulse_duration = PULSE_SLOW;
-                screen_init_flag = true;
-
-                splash(oled_handle, 800000 * 4);
-
-                fb_clear(oled_handle->ram);
-                uint8_t col = 0;
-                for (uint8_t page = 0; page < DISP_PAGES; page++) {
-                    write_number(oled_handle->ram, col, page, page);
-                    col += FONT_PX_WIDTH + 1;
-                }
-
-                write_hello(oled_handle->ram, DISP_COL - (5 * (FONT_PX_WIDTH + FONT_PX_KERNING)), 0);
-
-                ssd1306_update(oled_handle);
-            }
-        }
+        task_display(&ctx_display);
+        delay(PULSE_SLOW);
     }
 }
+
+void delay(const uint32_t count) {
+    for (uint32_t i = 0; i < count; i++);
+}
+
+static void FATAL() {
+    while (1) {}
+};
+
