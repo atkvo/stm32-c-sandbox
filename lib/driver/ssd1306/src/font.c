@@ -111,14 +111,14 @@ void font_copy_char(slice_mutable_t dest, char c) {
         return;
     }
 
-    const size_t char_offset = c - ' ';
+    const size_t table_offset = c - ' ';
     const uint8_t *bitmap = NULL;
 
-    if ((c < 0) || char_offset >= avail_char_count()) {
+    if ((c < 0) || table_offset >= avail_char_count()) {
         bitmap = font_get_unknown_char().ptr;
     }
     else {
-        bitmap = &font_ascii[(c - 32) * FONT_PX_WIDTH];
+        bitmap = &font_ascii[(table_offset) * FONT_PX_WIDTH];
     }
 
     for (size_t i = 0, buff_idx = 0; i < FONT_PX_WIDTH; i++) {
