@@ -13,6 +13,7 @@ target_link_libraries(${EXECUTABLE} PUBLIC
     ${MCU}_plat
     hal
     driver
+    antos
 )
 
 # Print executable size

@@ -1,6 +1,8 @@
 #include <assert.h>
 #include <stdint.h>
 #include <stddef.h>
+
+#include "antos.h"
 #include "gpio.h"
 #include "i2c.h"
 #include "slice.h"
@@ -21,6 +23,8 @@ enum {
     DISP_ADDR_TWO_TONE = 0x3c,
     DISP_ADDR_ONE_TONE = 0x3d,
 };
+
+static uint8_t task_mem[ANT_REQUIRED_MEM(4)];
 
 static_assert(DISP_ROW == (FB_PAGES * SSD1306_PAGE_HEIGHT), "Framebuffer page/col not expected");
 
@@ -112,13 +116,21 @@ int main()
 
     uint32_t pulse_duration = PULSE_INIT;
 
-    heartbeat(led_pin, 10, pulse_duration);
+    heartbeat(led_pin, 5, pulse_duration);
 
     task_display_ctx_t ctx_display = task_display_create_ctx(oled_handle);
-    while (1) {
-        task_display(&ctx_display);
-        delay(PULSE_SLOW);
+
+    if (ant_init(slice_mut_view(task_mem, sizeof(task_mem)), 3) != ANT_STATUS_OK) {
+        heartbeat(led_pin, 20, PULSE_FAST);
+        FATAL();
     }
+
+    ant_register((ant_task_t)&task_display, &ctx_display);
+
+    ant_run();
+
+    heartbeat(led_pin, 20, PULSE_FAST);
+    FATAL();
 }
 
 void delay(const uint32_t count) {

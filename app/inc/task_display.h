@@ -1,6 +1,7 @@
 #pragma once
 #include <stdint.h>
 #include "ssd1306.h"
+#include "antos.h"
 
 typedef struct task_display_ctx {
     bool initialized;
@@ -9,5 +10,6 @@ typedef struct task_display_ctx {
     uint8_t count;
 } task_display_ctx_t;
 
-void task_display(task_display_ctx_t *ctx);
+ant_task_status_t task_display(task_display_ctx_t *ctx);
 task_display_ctx_t task_display_create_ctx(ssd1306_handle_t oled);
+

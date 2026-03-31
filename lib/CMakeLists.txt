@@ -16,6 +16,10 @@ add_library(driver STATIC
     driver/ssd1306/src/font.c
 )
 
+add_library(antos STATIC
+    antos/src/antos.c
+)
+
 target_include_directories(${MCU_HAL} PUBLIC
     inc/
     hal/inc
@@ -24,6 +28,11 @@ target_include_directories(${MCU_HAL} PUBLIC
 target_include_directories(driver PUBLIC
     inc/
     driver/ssd1306/inc
+)
+
+target_include_directories(antos PUBLIC
+    inc/
+    antos/inc/
 )
 
 target_link_libraries(${MCU_HAL} PRIVATE

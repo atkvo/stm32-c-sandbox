@@ -17,7 +17,7 @@ task_display_ctx_t task_display_create_ctx(ssd1306_handle_t oled) {
     };
 }
 
-void task_display(task_display_ctx_t *ctx) {
+ant_task_status_t task_display(task_display_ctx_t *ctx) {
     if (!ctx->initialized) {
         ssd1306_init(ctx->disp);
         ctx->count = 0;
@@ -34,6 +34,8 @@ void task_display(task_display_ctx_t *ctx) {
 
     // should have a flag or something to update?
     ssd1306_update(ctx->disp);
+
+    return ANT_TASK_OK;
 }
 
 static void splash(ssd1306_handle_t oled, uint32_t cycle_count) {
