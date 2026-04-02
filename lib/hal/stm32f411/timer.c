@@ -10,29 +10,73 @@ typedef struct timer_ctx {
     volatile TIM_TypeDef *reg;
     timer_callback_t cb;
     void *user_data;
+    uint32_t counter_resolution;
 } timer_ctx_t;
 
-static timer_ctx_t _tim2;
+#define TIMER_MAX_COUNT (8)
+
+/* Possible timers:
+ * TIM 1    : 16 bit
+ * TIM 2,5  : 32 bit
+ * TIM 3,4  : 16 bit
+ * TIM 9    : 16 bit
+ * TIM 10,11: 16 bit
+ */
+static timer_ctx_t timer_ctx_pool[TIMER_MAX_COUNT] = { 0 };
+
+enum {
+    TIMER_2_POOL_INDEX = 1,
+    TIMER_3_POOL_INDEX = 2,
+    TIMER_4_POOL_INDEX = 3,
+    TIMER_5_POOL_INDEX = 4,
+};
 
 void TIM2_IRQHandler(void) {
     if (TIM2->SR & TIM_SR_UIF) {
-        if (_tim2.cb) {
-            _tim2.cb(_tim2.user_data);
+        const timer_ctx_t *ctx = &timer_ctx_pool[TIMER_2_POOL_INDEX];
+        if (ctx->cb) {
+            ctx->cb(ctx->user_data);
         }
 
         TIM2->SR &= ~TIM_SR_UIF;
     }
 };
 
-timer_handle_t timer_get_handle(uint8_t timer_index) {
-    // @todo: implement timer pool logic to get TIM1/2/3 etc
-    // like how we do for I2C/GPIO
-    return &_tim2;
+#if 0
+void TIM3_IRQHandler(void) {
+}
+
+void TIM4_IRQHandler(void) {
+}
+
+void TIM5_IRQHandler(void) {
+}
+#endif
+
+/* @todo: handle other time IRQ (special cases) */
+
+timer_handle_t timer_get_handle(uint8_t timer_number) {
+    switch (timer_number) {
+        case 1:
+            // @todo: add support for advanced timer 1
+            return NULL;
+        case 2:
+        case 3:
+        case 4:
+        case 5:
+            return &timer_ctx_pool[timer_number - 1];
+        default:
+            return NULL;
+    };
+
+    return NULL;
 }
 
 void timer_init(timer_handle_t ctx, const timer_cfg_t cfg) {
-    // @todo: temporary hardcode to only support TIM2
-    ctx = &_tim2;
+    if (ctx == NULL) {
+        return;
+    }
+
     ctx->reg = TIM2;
 
     RCC->APB1ENR |= RCC_APB1ENR_TIM2EN;
@@ -63,28 +107,42 @@ void timer_init(timer_handle_t ctx, const timer_cfg_t cfg) {
 }
 
 void timer_start(timer_handle_t ctx) {
-    ctx->reg->CR1 |= TIM_CR1_CEN;
+    if (ctx) {
+        ctx->reg->CR1 |= TIM_CR1_CEN;
+    }
 }
 
 void timer_stop(timer_handle_t ctx) {
-    ctx->reg->CR1 &= ~TIM_CR1_CEN;
+    if (ctx) {
+        ctx->reg->CR1 &= ~TIM_CR1_CEN;
+    }
 }
 
 void timer_int_enable(timer_handle_t ctx) {
-    NVIC_EnableIRQ(TIM2_IRQn);
-    ctx->reg->DIER |= TIM_DIER_UIE;
+    if (ctx) {
+        NVIC_EnableIRQ(TIM2_IRQn);
+        ctx->reg->DIER |= TIM_DIER_UIE;
+    }
 }
 
 void timer_int_disable(timer_handle_t ctx) {
-    NVIC_DisableIRQ(TIM2_IRQn);
-    ctx->reg->DIER &= ~TIM_DIER_UIE;
+    if (ctx) {
+        NVIC_DisableIRQ(TIM2_IRQn);
+        ctx->reg->DIER &= ~TIM_DIER_UIE;
+    }
 }
 
 uint32_t timer_read(timer_handle_t ctx) {
-    return ctx->reg->CNT;
+    if (ctx) {
+        return ctx->reg->CNT;
+    }
+
+    return 0;
 }
 
 void timer_register_callback(timer_handle_t ctx, timer_callback_t cb, void *user_data) {
-    ctx->cb = cb;
-    ctx->user_data = user_data;
+    if (ctx) {
+        ctx->cb = cb;
+        ctx->user_data = user_data;
+    }
 }
