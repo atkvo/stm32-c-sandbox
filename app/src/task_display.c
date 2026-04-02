@@ -25,6 +25,9 @@ ant_task_status_t task_display(task_display_ctx_t *ctx) {
         splash(ctx->disp, 800000 * 4);
 
         fb_clear(ctx->disp->ram);
+        ant_delay_next(1000);
+
+        return ANT_TASK_OK;
     }
 
     write_number(ctx->disp->ram, 0, 0, ctx->count);
@@ -35,11 +38,12 @@ ant_task_status_t task_display(task_display_ctx_t *ctx) {
     // should have a flag or something to update?
     ssd1306_update(ctx->disp);
 
+    ant_delay_next(10000);
     return ANT_TASK_OK;
 }
 
 static void splash(ssd1306_handle_t oled, uint32_t cycle_count) {
-    const uint8_t face[] = "(^_^)";
+    const uint8_t face[] = "(^_^)~";
     const uint8_t msg[] = "hello!";
 
     fb_clear(oled->ram);

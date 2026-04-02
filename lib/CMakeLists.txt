@@ -8,6 +8,7 @@ add_library(hal INTERFACE)
 add_library(${MCU_HAL} STATIC
     hal/${MCU}/gpio.c
     hal/${MCU}/i2c.c
+    hal/${MCU}/timer.c
 )
 
 add_library(driver STATIC
@@ -46,4 +47,8 @@ target_link_libraries(hal INTERFACE
 
 target_link_libraries(driver PUBLIC
     hal
+)
+
+target_link_libraries(antos PUBLIC
+    ${MCU_HAL}
 )

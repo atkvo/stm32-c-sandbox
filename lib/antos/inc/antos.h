@@ -45,6 +45,7 @@ typedef struct ant_tcb {
     ant_task_t fn;
     ant_task_status_t state;
     uint32_t next_run_ms;
+    uint32_t last_run_count;
     uint32_t period_ms;
     void *ctx;
 } ant_tcb_t __attribute__((aligned(4)));
@@ -73,5 +74,7 @@ ant_status_t ant_register(ant_task_t task, void *ctx);
 /* @brief Start the ant os kernel. Should never return
  */
 void ant_run();
+
+void ant_delay_next(uint32_t c);
 
 #endif

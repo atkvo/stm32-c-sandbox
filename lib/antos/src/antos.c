@@ -1,10 +1,16 @@
-#include "antos.h"
 #include <string.h>
+
+#include "antos.h"
+#include "timer.h"
 
 typedef struct {
     uint8_t max_tasks;
     uint8_t current_task_count;
+    uint8_t active_task_idx;
     ant_tcb_t* tasks;
+    timer_handle_t timer;
+
+    volatile uint64_t tick_count;
 } ant_kernel_t;
 
 static ant_kernel_t kernel = { .max_tasks = 0 };
@@ -14,6 +20,10 @@ static bool is_kernel_initialized() {
 }
 
 extern void delay(const uint32_t count);
+
+void ant_timer_cb(void *data) {
+    kernel.tick_count++;
+}
 
 ant_status_t ant_init(slice_mutable_t mem, uint8_t total_tasks) {
     if (is_kernel_initialized()) {
@@ -36,6 +46,17 @@ ant_status_t ant_init(slice_mutable_t mem, uint8_t total_tasks) {
 
     kernel.tasks = (ant_tcb_t*)mem.ptr;
 
+    timer_cfg_t timer_cfg = {
+        .hz = 16000,
+        .periodic = true,
+    };
+
+    kernel.timer = timer_get_handle(2);
+    timer_register_callback(kernel.timer, ant_timer_cb, NULL);
+    timer_init(kernel.timer, timer_cfg);
+    timer_int_enable(kernel.timer);
+    timer_start(kernel.timer);
+
     return ANT_STATUS_OK;
 }
 
@@ -48,28 +69,50 @@ ant_status_t ant_register(ant_task_t fn, void *ctx) {
         return ANT_STATUS_OOM;
     }
 
-    kernel.tasks[kernel.current_task_count].ctx = ctx;
-    kernel.tasks[kernel.current_task_count].fn = fn;
+    ant_tcb_t *t = &kernel.tasks[kernel.current_task_count];
+    t->ctx = ctx;
+    t->fn = fn;
+    t->last_run_count = 0;
+    t->next_run_ms = 0;
+    t->period_ms = 0;
 
     kernel.current_task_count++;
 
     return ANT_STATUS_OK;
 }
 
-void ant_run() {
-    size_t task_index = 0;
-    while (1) {
-        ant_tcb_t *task = &kernel.tasks[task_index];
+static uint64_t ant_get_tick() {
+    return kernel.tick_count;
+}
 
-        // @todo: get return
-        task->fn(task->ctx);
+static void ant_handle_task_exec(ant_tcb_t *t) {
+    const uint32_t current_count = ant_get_tick();
+    const uint32_t elapsed_count = current_count - t->last_run_count;
 
-        task_index++;
-        if (task_index == kernel.current_task_count) {
-            task_index = 0;
-        }
-
-        // @todo: do not use this!
-        delay(1000 * 100);
+    if (elapsed_count >= t->next_run_ms) {
+        t->fn(t->ctx);
+        t->last_run_count = ant_get_tick();
     }
 }
+
+void ant_run() {
+    kernel.active_task_idx = 0;
+    while (1) {
+        ant_tcb_t *task = &kernel.tasks[kernel.active_task_idx];
+        ant_handle_task_exec(task);
+
+        kernel.active_task_idx++;
+        if (kernel.active_task_idx == kernel.current_task_count) {
+            kernel.active_task_idx = 0;
+        }
+    }
+}
+
+void ant_delay_next(uint32_t c) {
+    if (kernel.active_task_idx >= kernel.current_task_count) {
+        return;
+    }
+
+    kernel.tasks[kernel.active_task_idx].next_run_ms = c;
+}
+
