@@ -3,8 +3,8 @@
 #include <stddef.h>
 
 #include "timer.h"
+#include "platform.h"
 #include "stm32f411xe.h"
-#include "system_stm32f4xx.h"
 
 typedef struct timer_ctx {
     volatile TIM_TypeDef *reg;
@@ -39,7 +39,7 @@ void timer_init(timer_handle_t ctx, const timer_cfg_t cfg) {
     RCC->APB1RSTR |=  (RCC_APB1RSTR_TIM2RST);
     RCC->APB1RSTR &= ~(RCC_APB1RSTR_TIM2RST);
 
-    uint32_t sys_freq = timer_system_clock_freq();
+    uint32_t sys_freq = plat_system_clock_freq();
 
     {
         /* From Gemini */
@@ -82,14 +82,6 @@ void timer_int_disable(timer_handle_t ctx) {
 
 uint32_t timer_read(timer_handle_t ctx) {
     return ctx->reg->CNT;
-}
-
-uint32_t timer_system_clock_freq() {
-    return SystemCoreClock;
-}
-
-void timer_system_clock_update() {
-    SystemCoreClockUpdate();
 }
 
 void timer_register_callback(timer_handle_t ctx, timer_callback_t cb, void *user_data) {

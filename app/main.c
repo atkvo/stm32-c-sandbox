@@ -10,11 +10,8 @@
 #include "string.h"
 #include "framebuffer.h"
 #include "task_display.h"
-
-// @todo: move this out of main.c
-// maybe simple "platform_init()" to call these two?
-// platform_clock_update()
-#include "system_stm32f4xx.h"
+#include "platform.h"
+#include "timer.h"
 
 enum {
     DISP_COL = FB_COLUMNS,
@@ -61,10 +58,24 @@ static void heartbeat(gpio_pin_handle_t led_pin, const uint32_t cycles, const ui
     }
 }
 
+typedef struct {
+    gpio_pin_handle_t led_pin;
+    bool state;
+} heartbeat_task_ctx_t;
+
+static heartbeat_task_ctx_t hb_ctx;
+
+static void task_heartbeat(heartbeat_task_ctx_t *ctx) {
+    gpio_pin_write(ctx->led_pin, ctx->state);
+    ctx->state = !ctx->state;
+
+    ant_delay_next(15000);
+}
+
 int main()
 {
-    SystemInit();
-    SystemCoreClockUpdate();
+    plat_init();
+    plat_system_core_clock_update();
 
     gpio_pin_handle_t led_pin = gpio_pin_acquire(GPIO_PORT_C, 13);
     if (led_pin == NULL) {
@@ -81,6 +92,8 @@ int main()
                     GPIO_OUTPUT_MODE_OPEN_DRAIN,
                 },
             });
+
+    hb_ctx.led_pin = led_pin;
 
     i2c_app_config_t i2c_prop = configure_i2c();
 
@@ -126,6 +139,7 @@ int main()
     }
 
     ant_register((ant_task_t)&task_display, &ctx_display);
+    ant_register((ant_task_t)&task_heartbeat, &hb_ctx);
 
     ant_run();
 
