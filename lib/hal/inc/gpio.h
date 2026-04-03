@@ -130,6 +130,7 @@ void gpio_pin_configure(gpio_pin_handle_t handle, gpio_pin_config_t cfg);
  *
  * @return true if pin is high
  * @return false if pin is low
+ */
 bool gpio_pin_read(gpio_pin_handle_t handle);
 
 /**

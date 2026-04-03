@@ -4,6 +4,7 @@
 #include "gpio.h"
 #include "stm32f411xe.h"
 #include "bit_utils.h"
+#include "resource_map.h"
 
 #define GPIO_MAX_PORTS        (6)
 #define GPIO_MAX_PIN_PER_PORT (16)
@@ -76,10 +77,11 @@ gpio_pin_handle_t gpio_pin_acquire(gpio_port_t port, uint8_t pin_index) {
     }
 
     const uint8_t pool_idx = port_to_pool(port);
-    if (!BIT_IS_SET(gpio_port_pool[pool_idx].taken_map, pin_index)) {
-        gpio_port_pool[pool_idx].taken_map = BIT(pin_index);
+    gpio_port_resource_t *p = &gpio_port_pool[pool_idx];
+    if (resource_is_free(&p->taken_map, pin_index)) {
+        resource_take(&p->taken_map, BIT(pin_index));
 
-        gpio_pin_ctx_t *pin_ctx = &gpio_port_pool[pool_idx].pins[pin_index];
+        gpio_pin_ctx_t *pin_ctx = &p->pins[pin_index];
         pin_ctx->pool_idx = pool_idx;
         pin_ctx->pin_index = pin_index;
 
