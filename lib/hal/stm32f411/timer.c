@@ -31,17 +31,6 @@ enum {
     TIMER_5_POOL_INDEX = 4,
 };
 
-void TIM2_IRQHandler(void) {
-    if (TIM2->SR & TIM_SR_UIF) {
-        const timer_ctx_t *ctx = &timer_ctx_pool[TIMER_2_POOL_INDEX];
-        if (ctx->cb) {
-            ctx->cb(ctx->user_data);
-        }
-
-        TIM2->SR &= ~TIM_SR_UIF;
-    }
-};
-
 #if 0
 void TIM3_IRQHandler(void) {
 }
@@ -53,7 +42,6 @@ void TIM5_IRQHandler(void) {
 }
 #endif
 
-/* @todo: handle other time IRQ (special cases) */
 
 timer_handle_t timer_get_handle(uint8_t timer_number) {
     switch (timer_number) {
@@ -144,5 +132,19 @@ void timer_register_callback(timer_handle_t ctx, timer_callback_t cb, void *user
     if (ctx) {
         ctx->cb = cb;
         ctx->user_data = user_data;
+    }
+}
+
+inline bool timer_int_update_flag_check(timer_handle_t ctx) {
+    return (ctx->reg->SR) & TIM_SR_UIF;
+}
+
+void timer_int_update_flag_clear(timer_handle_t ctx) {
+    ctx->reg->SR &= ~TIM_SR_UIF;
+}
+
+void timer_int_callback_exec(timer_handle_t ctx) {
+    if (ctx->cb) {
+        ctx->cb(ctx->user_data);
     }
 }

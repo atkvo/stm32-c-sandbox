@@ -37,4 +37,8 @@ void timer_int_disable(timer_handle_t);
 uint32_t timer_read(timer_handle_t);
 void timer_register_callback(timer_handle_t, timer_callback_t cb, void *user_data);
 
+bool timer_int_update_flag_check(timer_handle_t ctx);
+void timer_int_update_flag_clear(timer_handle_t ctx);
+void timer_int_callback_exec(timer_handle_t ctx);
+
 #endif

@@ -4,6 +4,7 @@
 #define ANT_H
 
 #include "slice.h"
+#include "timer.h"
 #include <stdint.h>
 
 /** @brief AntOS task status
@@ -76,5 +77,9 @@ ant_status_t ant_register(ant_task_t task, void *ctx);
 void ant_run();
 
 void ant_delay_next(uint32_t c);
+
+void ant_tick_handler(void);
+
+const timer_handle_t ant_get_system_timer();
 
 #endif

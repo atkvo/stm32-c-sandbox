@@ -2,6 +2,7 @@
 add_executable(${EXECUTABLE}
     main.c
     src/task_display.c
+    src/int_handlers.c
 )
 
 target_include_directories(${EXECUTABLE} PUBLIC

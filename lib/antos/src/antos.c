@@ -19,9 +19,7 @@ static bool is_kernel_initialized() {
     return kernel.max_tasks != 0;
 }
 
-extern void delay(const uint32_t count);
-
-void ant_timer_cb(void *data) {
+void ant_tick_handler(void) {
     kernel.tick_count++;
 }
 
@@ -52,7 +50,6 @@ ant_status_t ant_init(slice_mutable_t mem, uint8_t total_tasks) {
     };
 
     kernel.timer = timer_get_handle(2);
-    timer_register_callback(kernel.timer, ant_timer_cb, NULL);
     timer_init(kernel.timer, timer_cfg);
     timer_int_enable(kernel.timer);
     timer_start(kernel.timer);
@@ -116,3 +113,6 @@ void ant_delay_next(uint32_t c) {
     kernel.tasks[kernel.active_task_idx].next_run_ms = c;
 }
 
+const timer_handle_t ant_get_system_timer() {
+    return kernel.timer;
+}
