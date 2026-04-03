@@ -5,6 +5,7 @@
 #include "timer.h"
 #include "platform.h"
 #include "stm32f411xe.h"
+#include "pool_mgr.h"
 
 typedef struct timer_ctx {
     volatile TIM_TypeDef *reg;
@@ -22,7 +23,8 @@ typedef struct timer_ctx {
  * TIM 9    : 16 bit
  * TIM 10,11: 16 bit
  */
-static timer_ctx_t timer_ctx_pool[TIMER_MAX_COUNT] = { 0 };
+static timer_ctx_t timer_ctx_pool_mem[TIMER_MAX_COUNT] = { 0 };
+static pool_manager_t timer_pool = POOL_MGR_INIT(timer_ctx_pool_mem, timer_ctx_t, TIMER_MAX_COUNT);
 
 enum {
     TIMER_2_POOL_INDEX = 1,
@@ -44,6 +46,8 @@ void TIM5_IRQHandler(void) {
 
 
 timer_handle_t timer_get_handle(uint8_t timer_number) {
+    uint32_t timer_idx = 0;
+    timer_handle_t handle = NULL;
     switch (timer_number) {
         case 1:
             // @todo: add support for advanced timer 1
@@ -52,12 +56,18 @@ timer_handle_t timer_get_handle(uint8_t timer_number) {
         case 3:
         case 4:
         case 5:
-            return &timer_ctx_pool[timer_number - 1];
+            timer_idx = timer_number - 1;
+            handle = pool_mgr_take(&timer_pool, timer_idx);
+            /* intentional fall through */
         default:
-            return NULL;
+            break;
     };
 
-    return NULL;
+    return handle;
+}
+
+void timer_handle_free(timer_handle_t ctx) {
+    pool_mgr_return(&timer_pool, ctx);
 }
 
 void timer_init(timer_handle_t ctx, const timer_cfg_t cfg) {

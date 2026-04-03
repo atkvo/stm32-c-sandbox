@@ -4,11 +4,12 @@
 #include "gpio.h"
 #include "stm32f411xe.h"
 #include "bit_utils.h"
-#include "resource_map.h"
+#include "pool_mgr.h"
 
 #define GPIO_MAX_PORTS        (6)
 #define GPIO_MAX_PIN_PER_PORT (16)
 
+/* @todo: figure out how to use pool manager here... */
 typedef struct gpio_pin_ctx {
     volatile GPIO_TypeDef *port_ptr;
     uint8_t pool_idx;

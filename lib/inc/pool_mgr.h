@@ -1,7 +1,14 @@
 #pragma once
 
-#ifndef RESOURCE_MAP_H
-#define RESOURCE_MAP_H
+#include <stddef.h>
+#ifndef POOL_MGR_H
+#define POOL_MGR_H
+
+/* @brief Pool manager can be used to easily manage generic pool
+ *
+ * @details In a pool each resource can be taken only once and will no
+ * longer be available until returned.
+ **/
 
 #include "bit_utils.h"
 #include <stdint.h>
@@ -12,12 +19,29 @@ static_assert(sizeof(resource_map_t) == sizeof(uint32_t),
         "API assumes resource is a 32 bit type");
 
 /* Initial state is that all resources are not taken */
-#define RESOURCE_MAP_INIT_STATE (0)
-#define RESOURCE_MAP_ALL_TAKEN  (UINT32_MAX)
+#define POOL_MGR_INIT_STATE (0)
+#define POOL_MGR_ALL_TAKEN  (UINT32_MAX)
 
-static inline resource_map_t resource_init(void) {
-    return RESOURCE_MAP_INIT_STATE;
+typedef struct {
+    void *buffer;
+    size_t obj_size;
+    uint32_t capacity;
+    resource_map_t bitmap;
+} pool_manager_t;
+
+#define POOL_MGR_INIT(mem, obj_type, cap) \
+{                                         \
+    .buffer = (mem),                      \
+    .obj_size = sizeof(obj_type),         \
+    .capacity = (cap),                    \
+    .bitmap = POOL_MGR_INIT_STATE         \
 }
+
+pool_manager_t pool_mgr_init(void *pool_buffer, size_t obj_size, uint32_t capacity);
+
+void pool_mgr_return(pool_manager_t *pool, void *object);
+
+void* pool_mgr_take(pool_manager_t *pool, uint8_t index);
 
 /* @warn there is no NULL checking in these APIs.
  * Caller must ensure:
@@ -25,7 +49,6 @@ static inline resource_map_t resource_init(void) {
  * 1. resource != NULL
  * 2. index < 32
  */
-
 static inline bool resource_is_free(const resource_map_t *resource, uint8_t index) {
     return !BIT_IS_SET(*resource, index);
 }
@@ -43,11 +66,11 @@ static inline void resource_free(resource_map_t *resource, uint8_t index) {
 }
 
 static inline void resource_take_all(resource_map_t *resource) {
-    *resource = RESOURCE_MAP_ALL_TAKEN;
+    *resource = POOL_MGR_ALL_TAKEN;
 }
 
 static inline void resource_free_all(resource_map_t *resource) {
-    *resource = 0;
+    *resource = POOL_MGR_INIT_STATE;
 }
 
 #endif

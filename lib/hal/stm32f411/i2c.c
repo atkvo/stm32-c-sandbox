@@ -4,13 +4,14 @@
 #include "i2c.h"
 #include "bit_utils.h"
 #include "gpio.h"
+#include "pool_mgr.h"
 #include "slice.h"
 #include "stm32f411xe.h"
 
-struct i2c_ctx {
+typedef struct i2c_ctx {
     volatile I2C_TypeDef* reg_ptr;
-    uint8_t resource_idx;
-};
+    uint8_t periph_idx;
+} i2c_ctx_t;
 
 static inline void i2c_start(i2c_handle_t);
 static inline void i2c_stop(i2c_handle_t);
@@ -23,10 +24,11 @@ static inline void i2c_ack_enable(i2c_handle_t);
 static inline void i2c_ack_disable(i2c_handle_t);
 
 #define I2C_MAX_INSTANCES (3)
-static struct i2c_ctx i2c_pool[I2C_MAX_INSTANCES];
+static struct i2c_ctx i2c_pool_mem[I2C_MAX_INSTANCES];
+static pool_manager_t i2c_pool = POOL_MGR_INIT(i2c_pool_mem, i2c_ctx_t, I2C_MAX_INSTANCES);
 
 /**
- * @brief Initialize hardware (Clocks, GPIOs, Baud rate, Duty cycle)
+ * @brief Takes an I2C instance
  */
 i2c_handle_t i2c_acquire(uint8_t i2c_idx) {
     if (i2c_idx >= I2C_MAX_INSTANCES) {
@@ -36,10 +38,23 @@ i2c_handle_t i2c_acquire(uint8_t i2c_idx) {
     static_assert((I2C2_BASE - I2C1_BASE) == (I2C3_BASE - I2C2_BASE),
             "I2C reg gap calculation requires equal gaps between I2C mmio reg sets");
     enum { I2C_REG_SIZE = (I2C2_BASE - I2C1_BASE) };
-    i2c_pool[i2c_idx].resource_idx = i2c_idx;
-    i2c_pool[i2c_idx].reg_ptr = (volatile I2C_TypeDef*)(I2C1_BASE + (i2c_idx * I2C_REG_SIZE));
 
-    return &i2c_pool[i2c_idx];
+    i2c_handle_t handle = (i2c_handle_t)pool_mgr_take(&i2c_pool, i2c_idx);
+
+    if (handle) {
+        handle->reg_ptr = (volatile I2C_TypeDef*)(I2C1_BASE + (i2c_idx * I2C_REG_SIZE));
+        handle->periph_idx = i2c_idx;
+    }
+
+    return handle;
+}
+
+void i2c_free(i2c_handle_t handle) {
+    if (handle == NULL) {
+        return;
+    }
+
+    pool_mgr_return(&i2c_pool, handle);
 }
 
 /**
@@ -52,7 +67,7 @@ void i2c_init(i2c_handle_t handle, gpio_pin_handle_t scl, gpio_pin_handle_t sda)
 
     // Turn on I2C peripheral clock
     const uint8_t RCC_I2C_BASE_BIT_INDEX = 21;
-    RCC->APB1ENR |= BIT(RCC_I2C_BASE_BIT_INDEX + handle->resource_idx);
+    RCC->APB1ENR |= BIT(RCC_I2C_BASE_BIT_INDEX + handle->periph_idx);
 
     // Configure GPIO pins
     gpio_pin_config_t gpio_cfg;

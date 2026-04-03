@@ -14,9 +14,11 @@ struct i2c_ctx;
 typedef struct i2c_ctx* i2c_handle_t;
 
 /**
- * @brief Initialize hardware (Clocks, GPIOs, Baud rate, Duty cycle)
+ * @brief Take an I2C handle if available
  */
 i2c_handle_t i2c_acquire(uint8_t i2c_idx);
+void i2c_free(i2c_handle_t);
+    // resource_take(&i2c_resource_map, i2c_idx);
 
 /**
  * @brief Configures I2C device
