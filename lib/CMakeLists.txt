@@ -6,6 +6,7 @@ set(MCU_PLATFORM ${MCU}_plat)
 add_library(hal INTERFACE)
 
 add_library(${MCU_HAL} STATIC
+    hal/${MCU}/dma.c
     hal/${MCU}/gpio.c
     hal/${MCU}/i2c.c
     hal/${MCU}/platform.c

@@ -148,6 +148,20 @@ void ssd1306_update(ssd1306_handle_t h) {
         (slice_t) { .ptr = h->ram.ptr, .len = h->ram.len });
 }
 
+void ssd1306_update_nb(ssd1306_handle_t h) {
+    if (h == NULL) {
+        return;
+    }
+
+    reset_cursor(h);
+
+    i2c_burst_write_nb(
+        h->i2c,
+        h->dev_addr,
+        STREAM_TYPE_DATA,
+        (slice_t) { .ptr = h->ram.ptr, .len = h->ram.len });
+}
+
 void ssd1306_display_state_set(ssd1306_handle_t h, bool on) {
     const uint8_t cmd[] = {
         on ? CMD_DISPLAY_ON : CMD_DISPLAY_OFF,

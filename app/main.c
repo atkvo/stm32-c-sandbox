@@ -69,7 +69,7 @@ static void task_heartbeat(heartbeat_task_ctx_t *ctx) {
     gpio_pin_write(ctx->led_pin, ctx->state);
     ctx->state = !ctx->state;
 
-    ant_delay_next(15000);
+    ant_delay_next(1000 * 10);
 }
 
 int main()

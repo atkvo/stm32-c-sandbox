@@ -39,3 +39,6 @@ uint8_t i2c_read_reg(i2c_handle_t handle, uint8_t dev_addr, uint8_t reg_addr);
  */
 void i2c_burst_write(i2c_handle_t handle, uint8_t dev_addr, uint8_t reg_addr, slice_t data);
 void i2c_burst_read(i2c_handle_t handle, uint8_t dev_addr, uint8_t reg_addr, slice_mutable_t data);
+
+// @todo: should this take a callback to handle completion?
+void i2c_burst_write_nb(i2c_handle_t handle, uint8_t dev_addr, uint8_t reg_addr, slice_t data);

@@ -36,7 +36,8 @@ ant_task_status_t task_display(task_display_ctx_t *ctx) {
     if (ctx->count >= 10) { ctx->count = 0; }
 
     // should have a flag or something to update?
-    ssd1306_update(ctx->disp);
+    // ssd1306_update(ctx->disp);
+    ssd1306_update_nb(ctx->disp);
 
     ant_delay_next(10000);
     return ANT_TASK_OK;

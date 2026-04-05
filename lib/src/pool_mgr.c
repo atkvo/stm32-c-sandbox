@@ -1,7 +1,18 @@
 #include "pool_mgr.h"
 
-static uint32_t resource_to_index(pool_manager_t *pool, void *obj) {
-    return ((obj - pool->buffer) / pool->obj_size);
+#define POOL_INVALID_RESOURCE -1
+static int32_t resource_to_index(pool_manager_t *pool, void *obj) {
+    if (obj < pool->buffer) {
+        return POOL_INVALID_RESOURCE;
+    }
+
+    int32_t idx = ((obj - pool->buffer) / pool->obj_size);
+    if (idx > pool->capacity) {
+        return POOL_INVALID_RESOURCE;
+    }
+    else {
+        return idx;
+    }
 }
 
 static void* index_to_resource(pool_manager_t *pool, uint32_t idx) {
@@ -17,14 +28,6 @@ pool_manager_t pool_mgr_init(void *pool_buffer, size_t obj_size, uint32_t capaci
     };
 }
 
-void pool_mgr_release(pool_manager_t *pool, void *object) {
-    if (pool == NULL) {
-        return;
-    }
-
-    resource_free(&pool->bitmap, resource_to_index(pool, object));
-}
-
 void* pool_mgr_take(pool_manager_t *pool, uint8_t index) {
     if ((pool == NULL) || (index >= pool->capacity)) {
         return NULL;
@@ -36,4 +39,17 @@ void* pool_mgr_take(pool_manager_t *pool, uint8_t index) {
 
     resource_take(&pool->bitmap, index);
     return index_to_resource(pool, index);
+}
+
+void pool_mgr_release(pool_manager_t *pool, void *object) {
+    if (pool == NULL) {
+        return;
+    }
+
+    int32_t idx = resource_to_index(pool, object);
+    if (idx == POOL_INVALID_RESOURCE) {
+        return;
+    }
+
+    resource_free(&pool->bitmap, resource_to_index(pool, object));
 }

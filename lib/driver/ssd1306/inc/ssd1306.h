@@ -38,6 +38,7 @@ typedef enum {
 void ssd1306_init(ssd1306_handle_t);
 
 void ssd1306_update(ssd1306_handle_t);
+void ssd1306_update_nb(ssd1306_handle_t);
 
 void ssd1306_display_state_set(ssd1306_handle_t, bool on);
 

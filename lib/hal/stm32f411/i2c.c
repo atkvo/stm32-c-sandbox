@@ -3,6 +3,7 @@
 
 #include "i2c.h"
 #include "bit_utils.h"
+#include "dma.h"
 #include "gpio.h"
 #include "pool_mgr.h"
 #include "slice.h"
@@ -13,6 +14,7 @@ typedef struct i2c_ctx {
     uint8_t periph_idx;
 } i2c_ctx_t;
 
+static void i2c_dma_handler(void *data);
 static inline void i2c_start(i2c_handle_t);
 static inline void i2c_stop(i2c_handle_t);
 static inline void i2c_stop_no_wait(i2c_handle_t);
@@ -93,6 +95,9 @@ void i2c_init(i2c_handle_t handle, gpio_pin_handle_t scl, gpio_pin_handle_t sda)
     const uint32_t freq_mhz = SystemCoreClock / 1000000; // convert to MHz
     i2c_ptr->CR2 |= freq_mhz << I2C_CR2_FREQ_Pos;
 
+    // Enable DMA
+    i2c_ptr->CR2 |= I2C_CR2_LAST | I2C_CR2_DMAEN;
+
     // get nanosecond period
     // period in mhz = us
     // 1000 ns / us
@@ -159,6 +164,29 @@ void i2c_burst_write(i2c_handle_t handle, uint8_t dev_addr, uint8_t reg_addr, sl
     }
 
     i2c_stop(handle);
+}
+
+void i2c_burst_write_nb(i2c_handle_t handle, uint8_t dev_addr, uint8_t reg_addr, slice_t data) {
+    if (handle == NULL) {
+        return;
+    }
+
+    dma_handle_t h = dma_stream_take(DMA_REQ_I2C1_TX);
+    if (h == NULL) {
+        return;
+    }
+
+    i2c_start(handle);
+    i2c_addr_wait(handle, dev_addr, false);
+    i2c_addr_flag_clear(handle);
+    i2c_write(handle, reg_addr);
+
+    dma_configure(h, NULL);
+    dma_register_callback(h, i2c_dma_handler, handle);
+    dma_start(h,
+            (const uint32_t*)data.ptr,
+            (uint32_t*)&handle->reg_ptr->DR,
+            data.len);
 }
 
 /**
@@ -256,3 +284,11 @@ static inline bool i2c_read_byte(i2c_handle_t h, uint8_t *out) {
 
     return true;
 }
+
+static void i2c_dma_handler(void *data) {
+    if (data) {
+        i2c_handle_t h = (i2c_handle_t)data;
+        i2c_stop(h);
+    }
+}
+
