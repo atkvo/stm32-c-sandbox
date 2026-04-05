@@ -5,7 +5,7 @@ static uint32_t resource_to_index(pool_manager_t *pool, void *obj) {
 }
 
 static void* index_to_resource(pool_manager_t *pool, uint32_t idx) {
-    return pool->buffer + (pool->obj_size * (idx + 1));
+    return pool->buffer + (pool->obj_size * (idx));
 }
 
 pool_manager_t pool_mgr_init(void *pool_buffer, size_t obj_size, uint32_t capacity) {
