@@ -72,7 +72,7 @@ static inline volatile GPIO_TypeDef* mmio_from_port(gpio_port_t port) {
     return (volatile GPIO_TypeDef*)(GPIOA_BASE + (GPIO_PORT_WIDTH * port));
 }
 
-gpio_pin_handle_t gpio_pin_acquire(gpio_port_t port, uint8_t pin_index) {
+gpio_pin_handle_t gpio_pin_take(gpio_port_t port, uint8_t pin_index) {
     if (!is_port_pin_valid(port, pin_index)) {
         return NULL;
     }

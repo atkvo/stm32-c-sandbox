@@ -39,9 +39,9 @@ typedef struct {
 
 pool_manager_t pool_mgr_init(void *pool_buffer, size_t obj_size, uint32_t capacity);
 
-void pool_mgr_return(pool_manager_t *pool, void *object);
-
 void* pool_mgr_take(pool_manager_t *pool, uint8_t index);
+
+void pool_mgr_release(pool_manager_t *pool, void *object);
 
 /* @warn there is no NULL checking in these APIs.
  * Caller must ensure:

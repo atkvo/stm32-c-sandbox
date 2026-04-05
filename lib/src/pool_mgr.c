@@ -17,7 +17,7 @@ pool_manager_t pool_mgr_init(void *pool_buffer, size_t obj_size, uint32_t capaci
     };
 }
 
-void pool_mgr_return(pool_manager_t *pool, void *object) {
+void pool_mgr_release(pool_manager_t *pool, void *object) {
     if (pool == NULL) {
         return;
     }

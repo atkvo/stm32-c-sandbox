@@ -30,7 +30,7 @@ static pool_manager_t i2c_pool = POOL_MGR_INIT(i2c_pool_mem, i2c_ctx_t, I2C_MAX_
 /**
  * @brief Takes an I2C instance
  */
-i2c_handle_t i2c_acquire(uint8_t i2c_idx) {
+i2c_handle_t i2c_take(uint8_t i2c_idx) {
     if (i2c_idx >= I2C_MAX_INSTANCES) {
         return NULL;
     }
@@ -49,12 +49,12 @@ i2c_handle_t i2c_acquire(uint8_t i2c_idx) {
     return handle;
 }
 
-void i2c_free(i2c_handle_t handle) {
+void i2c_release(i2c_handle_t handle) {
     if (handle == NULL) {
         return;
     }
 
-    pool_mgr_return(&i2c_pool, handle);
+    pool_mgr_release(&i2c_pool, handle);
 }
 
 /**

@@ -49,7 +49,7 @@ ant_status_t ant_init(slice_mutable_t mem, uint8_t total_tasks) {
         .periodic = true,
     };
 
-    kernel.timer = timer_get_handle(2);
+    kernel.timer = timer_take(2);
     timer_init(kernel.timer, timer_cfg);
     timer_int_enable(kernel.timer);
     timer_start(kernel.timer);

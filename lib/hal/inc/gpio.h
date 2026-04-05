@@ -93,7 +93,7 @@ struct gpio_pin_ctx;
 typedef struct gpio_pin_ctx *gpio_pin_handle_t;
 
 /**
- * @brief Acquire a GPIO pin handle
+ * @brief Take a GPIO pin handle
  *
  * Caller will now own the GPIO pin handle after this. Any subsequent
  * calls to the same GPIO pin handle will result in NULL being returned
@@ -104,10 +104,10 @@ typedef struct gpio_pin_ctx *gpio_pin_handle_t;
  * @return handle to port-pin if valid
  * @return NULL if invalid
  */
-gpio_pin_handle_t gpio_pin_acquire(gpio_port_t port, uint8_t pin_index);
+gpio_pin_handle_t gpio_pin_take(gpio_port_t port, uint8_t pin_index);
 
 /**
- * @brief Release a GPIO pin handle
+ * @brief Return a GPIO pin handle
  *
  * @param handle
  *

@@ -36,9 +36,9 @@ static void FATAL();
 
 static i2c_app_config_t configure_i2c() {
     i2c_app_config_t cfg;
-    cfg.sda = gpio_pin_acquire(GPIO_PORT_B, 6);
-    cfg.scl = gpio_pin_acquire(GPIO_PORT_B, 7);
-    cfg.handle = i2c_acquire(0);
+    cfg.sda = gpio_pin_take(GPIO_PORT_B, 6);
+    cfg.scl = gpio_pin_take(GPIO_PORT_B, 7);
+    cfg.handle = i2c_take(0);
 
     i2c_init(cfg.handle, cfg.sda, cfg.scl);
 
@@ -77,7 +77,7 @@ int main()
     plat_init();
     plat_system_core_clock_update();
 
-    gpio_pin_handle_t led_pin = gpio_pin_acquire(GPIO_PORT_C, 13);
+    gpio_pin_handle_t led_pin = gpio_pin_take(GPIO_PORT_C, 13);
     if (led_pin == NULL) {
         FATAL();
     }

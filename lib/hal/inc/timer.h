@@ -25,8 +25,8 @@ typedef void (*timer_callback_t)(void *data);
  *
  * @return timer_handle_t or NULL if not supported
  * */
-timer_handle_t timer_get_handle(uint8_t timer_number);
-void timer_handle_free(timer_handle_t ctx);
+timer_handle_t timer_take(uint8_t timer_number);
+void timer_release(timer_handle_t ctx);
 
 void timer_init(timer_handle_t, const timer_cfg_t cfg);
 void timer_start(timer_handle_t);

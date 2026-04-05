@@ -45,7 +45,7 @@ void TIM5_IRQHandler(void) {
 #endif
 
 
-timer_handle_t timer_get_handle(uint8_t timer_number) {
+timer_handle_t timer_take(uint8_t timer_number) {
     uint32_t timer_idx = 0;
     timer_handle_t handle = NULL;
     switch (timer_number) {
@@ -66,8 +66,8 @@ timer_handle_t timer_get_handle(uint8_t timer_number) {
     return handle;
 }
 
-void timer_handle_free(timer_handle_t ctx) {
-    pool_mgr_return(&timer_pool, ctx);
+void timer_release(timer_handle_t ctx) {
+    pool_mgr_release(&timer_pool, ctx);
 }
 
 void timer_init(timer_handle_t ctx, const timer_cfg_t cfg) {
