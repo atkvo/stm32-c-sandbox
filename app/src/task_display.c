@@ -6,9 +6,6 @@
 static void splash(ssd1306_handle_t oled, uint32_t cycle_count);
 static void write_number(slice_mutable_t s, size_t col, size_t row, size_t num);
 
-// @todo add common header
-extern void delay(const uint32_t count);
-
 task_display_ctx_t task_display_create_ctx(ssd1306_handle_t oled) {
     return (task_display_ctx_t) {
         .initialized = false,
@@ -25,7 +22,7 @@ ant_task_status_t task_display(task_display_ctx_t *ctx) {
         splash(ctx->disp, 800000 * 4);
 
         fb_clear(ctx->disp->ram);
-        ant_delay_next(1000);
+        ant_delay_next(80000);
 
         return ANT_TASK_OK;
     }
@@ -61,7 +58,6 @@ static void splash(ssd1306_handle_t oled, uint32_t cycle_count) {
             slice_view(msg, strlen(msg)));
 
     ssd1306_update(oled);
-    delay(cycle_count);
 }
 
 static void write_number(slice_mutable_t s, size_t col, size_t row, size_t num) {
