@@ -12,7 +12,7 @@
 #include "task_button.h"
 #include "task_display.h"
 #include "platform.h"
-#include "timer.h"
+#include "task_heartbeat.h"
 
 enum {
     DISP_COL = FB_COLUMNS,
@@ -62,20 +62,6 @@ static void heartbeat(gpio_pin_handle_t led_pin, const uint32_t cycles, const ui
     }
 }
 
-typedef struct {
-    gpio_pin_handle_t led_pin;
-    bool state;
-} heartbeat_task_ctx_t;
-
-static heartbeat_task_ctx_t hb_ctx;
-
-static void task_heartbeat(heartbeat_task_ctx_t *ctx) {
-    gpio_pin_write(ctx->led_pin, ctx->state);
-    ctx->state = !ctx->state;
-
-    ant_delay_next(1000 * 10);
-}
-
 int main()
 {
     plat_init();
@@ -97,7 +83,6 @@ int main()
                 },
             });
 
-    hb_ctx.led_pin = led_pin;
 
     gpio_pin_handle_t button_pin = gpio_pin_take(GPIO_PORT_A, 0);
     if (button_pin == NULL) {
@@ -111,6 +96,7 @@ int main()
                 .pupd = GPIO_PUPD_PULLUP,
             });
 
+    heartbeat_task_ctx_t hb_ctx = task_heartbeat_create_ctx(led_pin, 10*1000);
     button_task_ctx_t button_ctx = task_button_create_ctx(button_pin);
     i2c_app_config_t i2c_prop = configure_i2c();
 
