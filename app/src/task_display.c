@@ -1,6 +1,7 @@
 #include "task_display.h"
 #include "framebuffer.h"
 
+#include <stdio.h>
 #include <string.h>
 
 static void splash(ssd1306_handle_t oled, uint32_t cycle_count);
@@ -28,12 +29,12 @@ ant_task_status_t task_display(task_display_ctx_t *ctx) {
     }
 
     write_number(ctx->disp->ram, 0, 0, ctx->count);
+    write_number(ctx->disp->ram, 0, 4, *ctx->press_count);
 
     ctx->count++;
-    if (ctx->count >= 10) { ctx->count = 0; }
+    if (ctx->count >= 255) { ctx->count = 0; }
 
     // should have a flag or something to update?
-    // ssd1306_update(ctx->disp);
     ssd1306_update_nb(ctx->disp);
 
     ant_delay_next(10000);
@@ -61,6 +62,15 @@ static void splash(ssd1306_handle_t oled, uint32_t cycle_count) {
 }
 
 static void write_number(slice_mutable_t s, size_t col, size_t row, size_t num) {
-    const uint8_t ascii = '0' + num;
-    fb_write_ascii(s, col, row, slice_view(&ascii, 1));
+    enum {
+        MAX_DIGITS = 8,
+        MAX_VALUE = 9999,
+    };
+    char digits[MAX_DIGITS + 1];
+    if (num > (MAX_VALUE)) {
+        num = MAX_VALUE;
+    }
+
+    snprintf(digits, sizeof(digits), "%08d", num);
+    fb_write_ascii(s, col, row, slice_view((uint8_t*)digits, sizeof(digits) - 1));
 }

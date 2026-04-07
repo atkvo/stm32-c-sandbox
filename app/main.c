@@ -9,6 +9,7 @@
 #include "ssd1306.h"
 #include "string.h"
 #include "framebuffer.h"
+#include "task_button.h"
 #include "task_display.h"
 #include "platform.h"
 #include "timer.h"
@@ -21,7 +22,10 @@ enum {
     DISP_ADDR_ONE_TONE = 0x3d,
 };
 
-static uint8_t task_mem[ANT_REQUIRED_MEM(4)];
+enum {
+    ANT_MAX_TASKS = 5,
+};
+static uint8_t task_mem[ANT_REQUIRED_MEM(ANT_MAX_TASKS)];
 
 static_assert(DISP_ROW == (FB_PAGES * SSD1306_PAGE_HEIGHT), "Framebuffer page/col not expected");
 
@@ -95,6 +99,19 @@ int main()
 
     hb_ctx.led_pin = led_pin;
 
+    gpio_pin_handle_t button_pin = gpio_pin_take(GPIO_PORT_A, 0);
+    if (button_pin == NULL) {
+        FATAL();
+    }
+
+    gpio_pin_configure(
+            button_pin,
+            (gpio_pin_config_t) {
+                .mode = GPIO_MODE_INPUT,
+                .pupd = GPIO_PUPD_PULLUP,
+            });
+
+    button_task_ctx_t button_ctx = task_button_create_ctx(button_pin);
     i2c_app_config_t i2c_prop = configure_i2c();
 
     uint8_t display_ram[SSD1306_GET_RAM_SIZE(DISP_COL, DISP_ROW)];
@@ -132,14 +149,16 @@ int main()
     heartbeat(led_pin, 5, pulse_duration);
 
     task_display_ctx_t ctx_display = task_display_create_ctx(oled_handle);
+    ctx_display.press_count = &button_ctx.press_count;
 
-    if (ant_init(slice_mut_view(task_mem, sizeof(task_mem)), 3) != ANT_STATUS_OK) {
+    if (ant_init(slice_mut_view(task_mem, sizeof(task_mem)), ANT_MAX_TASKS) != ANT_STATUS_OK) {
         heartbeat(led_pin, 20, PULSE_FAST);
         FATAL();
     }
 
     ant_register((ant_task_t)&task_display, &ctx_display);
     ant_register((ant_task_t)&task_heartbeat, &hb_ctx);
+    ant_register((ant_task_t)&task_read_button, &button_ctx);
 
     ant_run();
 

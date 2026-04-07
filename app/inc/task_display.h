@@ -8,6 +8,7 @@ typedef struct task_display_ctx {
     ssd1306_handle_t disp;
 
     uint8_t count;
+    const uint32_t *press_count;
 } task_display_ctx_t;
 
 ant_task_status_t task_display(task_display_ctx_t *ctx);
