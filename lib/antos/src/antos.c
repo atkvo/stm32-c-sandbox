@@ -78,7 +78,7 @@ ant_status_t ant_register(ant_task_t fn, void *ctx) {
     return ANT_STATUS_OK;
 }
 
-static uint64_t ant_get_tick() {
+uint64_t ant_get_tick() {
     return kernel.tick_count;
 }
 
@@ -115,4 +115,8 @@ void ant_delay_next(uint32_t c) {
 
 const timer_handle_t ant_get_system_timer() {
     return kernel.timer;
+}
+
+uint64_t ant_get_tick_count() {
+    return kernel.tick_count;
 }

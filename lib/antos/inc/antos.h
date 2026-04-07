@@ -82,4 +82,6 @@ void ant_tick_handler(void);
 
 const timer_handle_t ant_get_system_timer();
 
+uint64_t ant_get_tick_count();
+
 #endif
