@@ -120,7 +120,7 @@ Flashing instructions here: https://openocd.org/doc/html/Flash-Programming.html
 
 ```sh
 # start the open ocd instance from the shell with the proper debugger/board configuration
-openocd -f interface/stlink-v2-1.cfg -f target/stm32f4x.cfg
+openocd -f interface/stlink-dap.cfg -f target/stm32f4x.cfg
 
 # in a separate shell instance, telnet into the openocd server
 telnet localhost 4444
