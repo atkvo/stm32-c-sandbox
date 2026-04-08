@@ -131,14 +131,22 @@ reset halt  # reset and halt the MCU
 program test.elf verify reset
 ```
 
-#### One Liner
+## Development Standards
+### Commit Convention
+This project follows the [Conventional Commits](https://www.conventionalcommits.org/) standard.
+Format: `<type>(scope): <description>`
 
-```sh
-openocd -f interface/stlink-v2-1.cfg -f scripts/target/stm32f4x.cfg -c "program stm32-sandbox.elf verify reset"
-```
+#### Allowed Types
+- `feat`: A new feature or capability.
+- `fix`: A bug fix.
+- `refactor`: Structural changes (no logic/feature change).
+- `build`: Build system or dependency updates (CMake/Meson).
+- `docs`: Documentation updates.
 
-### Debug GDB
+### Allowed Scopes
+- `core`: The task scheduler and timekeeping logic.
+- `hal`: Hardware abstraction interfaces (GPIO, I2C, DMA).
+- `drv`: External peripheral drivers (SSD1306).
+- `app`: Application-specific tasks and logic.
+- `common`: Utility libraries (pool_mgr, slice).
 
-1. Use OpenOCD to start the GDB server (port 3333)
-2. In a separate prompt run GDB `arm-none-eabi-gdb`
-3. WHen in the GDB prompt use `target remote localhost:3333` to begin debugging
