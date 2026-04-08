@@ -3,16 +3,18 @@
 #include <stddef.h>
 
 #include "antos.h"
+#include "app.h"
+#include "framebuffer.h"
 #include "gpio.h"
 #include "i2c.h"
+#include "platform.h"
 #include "slice.h"
 #include "ssd1306.h"
 #include "string.h"
-#include "framebuffer.h"
 #include "task_button.h"
 #include "task_display.h"
-#include "platform.h"
 #include "task_heartbeat.h"
+#include "timer.h"
 
 enum {
     DISP_COL = FB_COLUMNS,
@@ -22,12 +24,13 @@ enum {
     DISP_ADDR_ONE_TONE = 0x3d,
 };
 
+static_assert(DISP_ROW == (FB_PAGES * SSD1306_PAGE_HEIGHT), "Framebuffer page/col not expected");
+
 enum {
     ANT_MAX_TASKS = 5,
 };
-static uint8_t task_mem[ANT_REQUIRED_MEM(ANT_MAX_TASKS)];
 
-static_assert(DISP_ROW == (FB_PAGES * SSD1306_PAGE_HEIGHT), "Framebuffer page/col not expected");
+static uint8_t task_mem[ANT_REQUIRED_MEM(ANT_MAX_TASKS)];
 
 typedef struct i2c_app_config_t {
     i2c_handle_t handle;
@@ -96,7 +99,7 @@ int main()
                 .pupd = GPIO_PUPD_PULLUP,
             });
 
-    heartbeat_task_ctx_t hb_ctx = task_heartbeat_create_ctx(led_pin, 10*1000);
+    heartbeat_task_ctx_t hb_ctx = task_heartbeat_create_ctx(led_pin, 500);
     button_task_ctx_t button_ctx = task_button_create_ctx(button_pin);
     i2c_app_config_t i2c_prop = configure_i2c();
 
@@ -137,14 +140,32 @@ int main()
     task_display_ctx_t ctx_display = task_display_create_ctx(oled_handle);
     ctx_display.press_count = &button_ctx.press_count;
 
-    if (ant_init(slice_mut_view(task_mem, sizeof(task_mem)), ANT_MAX_TASKS) != ANT_STATUS_OK) {
+    app_os_timer = timer_take(APP_OS_TIMER_NUM);
+    if (app_os_timer == NULL) {
+        heartbeat(led_pin, 10, PULSE_FAST);
+        FATAL();
+    }
+
+    timer_cfg_t timer_cfg = {
+        .hz = APP_OS_TICK_RATE_HZ,
+        .periodic = true,
+    };
+
+    timer_init(app_os_timer, timer_cfg);
+    timer_int_enable(app_os_timer);
+    timer_start(app_os_timer);
+
+    if (ant_init(
+            slice_mut_view(task_mem, sizeof(task_mem)),
+            ANT_MAX_TASKS,
+            APP_OS_TICK_RATE_HZ) != ANT_STATUS_OK) {
         heartbeat(led_pin, 20, PULSE_FAST);
         FATAL();
     }
 
-    ant_register((ant_task_t)&task_display, &ctx_display);
-    ant_register((ant_task_t)&task_heartbeat, &hb_ctx);
-    ant_register((ant_task_t)&task_read_button, &button_ctx);
+    ant_register_task((ant_task_t)&task_display, &ctx_display);
+    ant_register_task((ant_task_t)&task_heartbeat, &hb_ctx);
+    ant_register_task((ant_task_t)&task_read_button, &button_ctx);
 
     ant_run();
 

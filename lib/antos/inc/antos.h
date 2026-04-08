@@ -4,7 +4,6 @@
 #define ANT_H
 
 #include "slice.h"
-#include "timer.h"
 #include <stdint.h>
 
 /** @brief AntOS task status
@@ -22,6 +21,7 @@ typedef enum {
     ANT_STATUS_INVALID_TASK_COUNT,
     ANT_STATUS_ALREADY_INITIALIZED,
     ANT_STATUS_OOM,
+    ANT_STATUS_INVALID_TICK_RATE,
 } ant_status_t;
 
 /**
@@ -56,32 +56,53 @@ typedef struct ant_tcb {
 
 /* @brief Initializes AntOS kernel. Required before any other calls.
  *
- * @param mem - slice to memory used for tasks
- * @param total_tasks - number of tasks to be managed by AntOS
+ * @param[in] mem - slice to memory used for tasks
+ * @param[in] total_tasks - number of tasks to be managed by AntOS
+ * @param[in] tick_hz - tick rate at which `ant_tick_handler` will be called
  *
  * @return ANT_STATUS_OK on success
  */
-ant_status_t ant_init(slice_mutable_t task_mem, uint8_t total_tasks);
+ant_status_t ant_init(slice_mutable_t task_mem, uint8_t total_tasks, uint32_t tick_hz);
+
+/* @brief AntOS tick handler
+ *
+ * This should be called periodically (at the `tick_hz`) rate supplied during `ant_init`
+ * If this is not called then the AntOS scheduler will not function properly
+ * */
+void ant_tick_handler(void);
 
 /* @brief Registers a task to the AntOS kernel.
  *
- * @param task - function pointer to task. see `ant_task_t` for requirements
- * @param ctx - context ptr used on every call to `task`
+ * @param[in] task - function pointer to task. see `ant_task_t` for requirements
+ * @param[in] ctx - context ptr used on every call to `task`
  *
  * @return ANT_STATUS_OK on success
  */
-ant_status_t ant_register(ant_task_t task, void *ctx);
+ant_status_t ant_register_task(ant_task_t task, void *ctx);
+
+/* @brief Set the next time the current task will be called
+ *
+ * @param[in] ms - the minimum time that must go by before called (in milliseconds)
+ * */
+void ant_task_schedule_next(uint32_t ms);
+
+/* @brief Gets the current tick count
+ *
+ * @return tick count
+ * */
+uint64_t ant_get_tick_count();
+
+/* @brief Converts number of ticks to ms
+ *
+ * @param[in] tick - number of ticks to convert
+ *
+ * @return duration in ms
+ * */
+uint64_t ant_ticks_to_ms(uint64_t tick);
+
 
 /* @brief Start the ant os kernel. Should never return
  */
-void ant_run();
-
-void ant_delay_next(uint32_t c);
-
-void ant_tick_handler(void);
-
-const timer_handle_t ant_get_system_timer();
-
-uint64_t ant_get_tick_count();
+void ant_run(void);
 
 #endif

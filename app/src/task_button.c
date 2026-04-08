@@ -11,7 +11,7 @@ button_task_ctx_t task_button_create_ctx(gpio_pin_handle_t btn) {
 
 void task_read_button(button_task_ctx_t *ctx) {
     enum {
-        DEBOUNCE_TIME = 2000,
+        DEBOUNCE_TIME = 80,
         IS_PRESSED = false,
         IS_NOT_PRESSED = true,
     };
@@ -50,5 +50,5 @@ void task_read_button(button_task_ctx_t *ctx) {
             break;
     }
 
-    ant_delay_next(5);
+    ant_task_schedule_next(5);
 }

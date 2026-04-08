@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 
-static void splash(ssd1306_handle_t oled, uint32_t cycle_count);
+static void splash(ssd1306_handle_t oled);
 static void write_number(slice_mutable_t s, size_t col, size_t row, size_t num);
 
 task_display_ctx_t task_display_create_ctx(ssd1306_handle_t oled) {
@@ -20,10 +20,10 @@ ant_task_status_t task_display(task_display_ctx_t *ctx) {
         ssd1306_init(ctx->disp);
         ctx->count = 0;
         ctx->initialized = true;
-        splash(ctx->disp, 800000 * 4);
+        splash(ctx->disp);
 
         fb_clear(ctx->disp->ram);
-        ant_delay_next(80000);
+        ant_task_schedule_next(1000);
 
         return ANT_TASK_OK;
     }
@@ -37,11 +37,11 @@ ant_task_status_t task_display(task_display_ctx_t *ctx) {
     // should have a flag or something to update?
     ssd1306_update_nb(ctx->disp);
 
-    ant_delay_next(10000);
+    ant_task_schedule_next(500);
     return ANT_TASK_OK;
 }
 
-static void splash(ssd1306_handle_t oled, uint32_t cycle_count) {
+static void splash(ssd1306_handle_t oled) {
     const uint8_t face[] = "(^_^)~";
     const uint8_t msg[] = "hello!";
 

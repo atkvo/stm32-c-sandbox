@@ -1,14 +1,13 @@
 #include <string.h>
 
 #include "antos.h"
-#include "timer.h"
 
 typedef struct {
     uint8_t max_tasks;
     uint8_t current_task_count;
     uint8_t active_task_idx;
     ant_tcb_t* tasks;
-    timer_handle_t timer;
+    uint32_t tick_hz;
 
     volatile uint64_t tick_count;
 } ant_kernel_t;
@@ -23,7 +22,7 @@ void ant_tick_handler(void) {
     kernel.tick_count++;
 }
 
-ant_status_t ant_init(slice_mutable_t mem, uint8_t total_tasks) {
+ant_status_t ant_init(slice_mutable_t mem, uint8_t total_tasks, uint32_t tick_hz) {
     if (is_kernel_initialized()) {
         return ANT_STATUS_ALREADY_INITIALIZED;
     }
@@ -36,28 +35,23 @@ ant_status_t ant_init(slice_mutable_t mem, uint8_t total_tasks) {
         return ANT_STATUS_FAIL;
     }
 
+    if (tick_hz == 0) {
+        return ANT_STATUS_INVALID_TICK_RATE;
+    }
+
     memset(&kernel, 0, sizeof(kernel));
     memset(mem.ptr, 0, mem.len);
 
     kernel.max_tasks = total_tasks;
     kernel.current_task_count = 0;
+    kernel.tick_hz = tick_hz;
 
     kernel.tasks = (ant_tcb_t*)mem.ptr;
-
-    timer_cfg_t timer_cfg = {
-        .hz = 16000,
-        .periodic = true,
-    };
-
-    kernel.timer = timer_take(2);
-    timer_init(kernel.timer, timer_cfg);
-    timer_int_enable(kernel.timer);
-    timer_start(kernel.timer);
 
     return ANT_STATUS_OK;
 }
 
-ant_status_t ant_register(ant_task_t fn, void *ctx) {
+ant_status_t ant_register_task(ant_task_t fn, void *ctx) {
     if (!is_kernel_initialized()) {
         return ANT_STATUS_FAIL;
     }
@@ -78,17 +72,18 @@ ant_status_t ant_register(ant_task_t fn, void *ctx) {
     return ANT_STATUS_OK;
 }
 
-uint64_t ant_get_tick() {
-    return kernel.tick_count;
+uint64_t ant_ticks_to_ms(uint64_t tick) {
+    return ((tick * 1000) + (kernel.tick_hz - 1)) / kernel.tick_hz;
 }
 
 static void ant_handle_task_exec(ant_tcb_t *t) {
-    const uint32_t current_count = ant_get_tick();
+    const uint32_t current_count = ant_get_tick_count();
     const uint32_t elapsed_count = current_count - t->last_run_count;
+    const uint64_t ms = ant_ticks_to_ms(elapsed_count);
 
-    if (elapsed_count >= t->next_run_ms) {
+    if (ms >= t->next_run_ms) {
         t->fn(t->ctx);
-        t->last_run_count = ant_get_tick();
+        t->last_run_count = ant_get_tick_count();
     }
 }
 
@@ -105,16 +100,12 @@ void ant_run() {
     }
 }
 
-void ant_delay_next(uint32_t c) {
+void ant_task_schedule_next(uint32_t c) {
     if (kernel.active_task_idx >= kernel.current_task_count) {
         return;
     }
 
     kernel.tasks[kernel.active_task_idx].next_run_ms = c;
-}
-
-const timer_handle_t ant_get_system_timer() {
-    return kernel.timer;
 }
 
 uint64_t ant_get_tick_count() {

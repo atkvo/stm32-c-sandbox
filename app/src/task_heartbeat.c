@@ -13,6 +13,6 @@ void task_heartbeat(heartbeat_task_ctx_t *ctx) {
     gpio_pin_write(ctx->led_pin, ctx->state);
     ctx->state = !ctx->state;
 
-    ant_delay_next(ctx->delay);
+    ant_task_schedule_next(ctx->delay);
 }
 
