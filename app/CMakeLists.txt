@@ -1,10 +1,10 @@
 
 add_executable(${EXECUTABLE}
-    main.c
-    src/task_button.c
-    src/task_display.c
-    src/task_heartbeat.c
-    src/int_handlers.c
+    src/main.c
+    src/tasks/task_button.c
+    src/tasks/task_display.c
+    src/tasks/task_heartbeat.c
+    src/port/stm32f411_port.c
 )
 
 target_include_directories(${EXECUTABLE} PUBLIC
@@ -13,9 +13,9 @@ target_include_directories(${EXECUTABLE} PUBLIC
 
 target_link_libraries(${EXECUTABLE} PUBLIC
     cmsis
-    ${MCU}_plat
+    stm32f411
     hal
-    driver
+    ssd1306
     antos
 )
 
