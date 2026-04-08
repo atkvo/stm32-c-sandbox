@@ -14,121 +14,53 @@ There is no specific project/application in mind at the moment. Just an ongoing 
 The initial STM32 development board is the [WeAct Black Pill V2.0](https://stm32-base.org/boards/STM32F411CEU6-WeAct-Black-Pill-V2.0.html)
 
 
-# Setup
-
-```
-git clone {repo}
-```
-
 ## Requirements
 
-* `arm-none-eabi-gcc` tools
-* `st-link` tools
-* `cmake`
+* Compiler: `arm-none-eabi-gcc`
+* Build System: `CMake`
+* Debugger:`st-link` or `OpenOCD`
 
-## Mac OS
-
-Assuming `homebrew` is installed
-
-```
-brew install gcc-arm-embedded
-brew install cmake
-brew install stlink
-brew install openocd
-```
-
-## Linux
-
-### Ubuntu
-
-Install `cmake` and `gcc-arm-none-eabi` tools
-
-```sh
-sudo apt install gcc-arm-none-eabi
-sudo apt install cmake
-sudo apt install gdb-multiarch
-```
-
-To install the latest `st-link` tools, download the `*.deb` package from https://github.com/stlink-org/stlink and install via `apt`
-
-```sh
-sudo apt install path/to/the/st/link/deb/file
-```
-
-### Fedora
-
-> note: the latest `st-link` tools package (`1.7`) is available in the repositories.
-
-```sh
-sudo dnf install openocd stlink cmake
-```
-
-Fedora 36 did not have the `gdb-multiarch` equivalent. Instead, just use the official `arm-none-eabi-gcc` package from the ARM developer website
-
-https://developer.arm.com/tools-and-software/open-source-software/developer-tools/gnu-toolchain/downloads
-
-Sample installation:
-```
-tar -xf /opt
-# add /opt/extract_contents/bin to $PATH
-```
-
-
-# Build
+## Build
 
 ```sh
 # create a build folder for an out of source build
 mkdir build
 cd build
 cmake .. -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-none-eabi-gcc.cmake
-make
+camke --build .
 ```
 
-# Flashing & Debug
+## Flashing & Debugging
 
-## TLDR
-> Assumes flash address at `0x08000000`
+### Flashing
+The build system encapsulates the flashing logic. Ensure your ST-LINK is connected and the board is powered, then run:
 
-```
-make flash
-```
-
-## st-flash
-> flash the binary file (`*.bin`) at the flash address (stm32f4: `0x08000000`)
-
-```sh
-# assume current working directory is in the build output folder
-# and the binary is called test.bin
-# the flash address starts at 0x08000000
-st-flash write test.bin 0x08000000
-
+```bash
+cmake --build <build_dir> --target flash
 ```
 
-## OpenOCD
+*Note: The project is configured to flash to base address `0x08000000`. By default, this target utilizes `st-flash` for the transfer.*
 
-Flashing instructions here: https://openocd.org/doc/html/Flash-Programming.html
+### Debugging
+Debugging is performed via **OpenOCD** acting as a GDB server.
 
-> Note (1)
-> For `*.bin` files - you must specify the address to flash the program to (stm32f4: `0x08000000`)
-> For `*.elf` files - you do *not* need to specify the address where to flash the program
-
-> Note (2)
-> The paths below are based on a homebrew installation of OpenOCD on MacOS
-> On Fedora, the openocd scripts folder is located at: `/usr/share/openocd/scripts/`
-
-## Via OpenOCD Telnet Interface
-
-```sh
-# start the open ocd instance from the shell with the proper debugger/board configuration
+#### 1. Start the GDB Server
+In a dedicated terminal, launch OpenOCD with the target configuration:
+```bash
 openocd -f interface/stlink-dap.cfg -f target/stm32f4x.cfg
+```
 
-# in a separate shell instance, telnet into the openocd server
-telnet localhost 4444
+#### 2. Connect GDB
+In a separate shell (or within your Neovim terminal), launch the ARM GDB client and connect to the local server (port `3333`):
+```bash
+arm-none-eabi-gdb build/your_project.elf
+```
 
-# from the telnet session
-targets     # use this to see run state of MCU
-reset halt  # reset and halt the MCU
-program test.elf verify reset
+Once inside the GDB prompt, use the following commands to begin your session:
+```gdb
+(gdb) target remote localhost:3333
+(gdb) monitor reset halt
+(gdb) load
 ```
 
 ## Development Standards
