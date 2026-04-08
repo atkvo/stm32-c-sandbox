@@ -15,4 +15,5 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 add_subdirectory(platform)
 add_subdirectory(lib)
 add_subdirectory(app)
+add_subdirectory(sim)
 
