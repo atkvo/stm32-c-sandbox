@@ -74,6 +74,7 @@ Format: `<type>(scope): <description>`
 - `refactor`: Structural changes (no logic/feature change).
 - `build`: Build system or dependency updates (CMake/Meson).
 - `docs`: Documentation updates.
+- `style`: Cosmetic changes (does not effect binary).
 
 ### Allowed Scopes
 - `core`: The task scheduler and timekeeping logic.
