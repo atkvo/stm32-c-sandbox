@@ -5,8 +5,8 @@
 typedef struct {
     uint8_t max_tasks;
     uint8_t current_task_count;
-    uint8_t active_task_idx;
     ant_tcb_t* tasks;
+    ant_tcb_t* active_task;
     uint32_t tick_hz;
 
     volatile uint64_t tick_count;
@@ -46,8 +46,8 @@ ant_status_t ant_init(slice_mutable_t mem, uint8_t total_tasks, uint32_t tick_hz
     kernel.max_tasks = total_tasks;
     kernel.current_task_count = 0;
     kernel.tick_hz = tick_hz;
-
     kernel.tasks = (ant_tcb_t*)mem.ptr;
+    kernel.active_task = NULL;
 
     return ANT_STATUS_OK;
 }
@@ -80,6 +80,14 @@ uint64_t ant_ms_to_ticks(uint64_t ms) {
 }
 
 static void ant_handle_task_exec(ant_tcb_t *t) {
+    if (t == NULL) {
+        return;
+    }
+
+    if (t->state == ANT_TASK_FINISHED) {
+        return;
+    }
+
     if (t->next_deadline_ms == ANT_WAITING_FOR_SCHEDULE) {
         return;
     }
@@ -93,24 +101,20 @@ static void ant_handle_task_exec(ant_tcb_t *t) {
 }
 
 void ant_run() {
-    kernel.active_task_idx = 0;
     while (1) {
-        ant_tcb_t *task = &kernel.tasks[kernel.active_task_idx];
-        ant_handle_task_exec(task);
-
-        kernel.active_task_idx++;
-        if (kernel.active_task_idx == kernel.current_task_count) {
-            kernel.active_task_idx = 0;
+        for (uint32_t i = 0; i < kernel.current_task_count; i++) {
+            kernel.active_task = &kernel.tasks[i];
+            ant_handle_task_exec(kernel.active_task);
         }
     }
 }
 
 void ant_task_schedule_next(uint32_t ms) {
-    if (kernel.active_task_idx >= kernel.current_task_count) {
+    if (kernel.active_task == NULL) {
         return;
     }
 
-    ant_tcb_t *t = &kernel.tasks[kernel.active_task_idx];
+    ant_tcb_t *t = kernel.active_task;
     uint32_t now = ant_ticks_to_ms(ant_get_tick_count());
 
     if (t->next_deadline_ms == ANT_WAITING_FOR_SCHEDULE || t->next_deadline_ms == 0) {
