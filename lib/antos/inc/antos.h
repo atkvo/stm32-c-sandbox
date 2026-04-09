@@ -45,9 +45,7 @@ typedef ant_task_status_t (*ant_task_t)(void* context);
 typedef struct ant_tcb {
     ant_task_t fn;
     ant_task_status_t state;
-    uint32_t next_run_ms;
-    uint32_t last_run_count;
-    uint32_t period_ms;
+    uint64_t next_deadline_ms;
     void *ctx;
 } ant_tcb_t __attribute__((aligned(4)));
 
@@ -81,6 +79,9 @@ void ant_tick_handler(void);
 ant_status_t ant_register_task(ant_task_t task, void *ctx);
 
 /* @brief Set the next time the current task will be called
+ *
+ * @details This API must be called if the task is to be executed again when done
+ * otherwise the task will no longer be called by the scheduler.
  *
  * @param[in] ms - the minimum time that must go by before called (in milliseconds)
  * */

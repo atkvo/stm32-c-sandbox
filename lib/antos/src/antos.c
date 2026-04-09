@@ -13,6 +13,7 @@ typedef struct {
 } ant_kernel_t;
 
 static ant_kernel_t kernel = { .max_tasks = 0 };
+#define ANT_WAITING_FOR_SCHEDULE (UINT32_MAX)
 
 static bool is_kernel_initialized() {
     return kernel.max_tasks != 0;
@@ -63,9 +64,7 @@ ant_status_t ant_register_task(ant_task_t fn, void *ctx) {
     ant_tcb_t *t = &kernel.tasks[kernel.current_task_count];
     t->ctx = ctx;
     t->fn = fn;
-    t->last_run_count = 0;
-    t->next_run_ms = 0;
-    t->period_ms = 0;
+    t->next_deadline_ms = 0;
 
     kernel.current_task_count++;
 
@@ -76,14 +75,20 @@ uint64_t ant_ticks_to_ms(uint64_t tick) {
     return ((tick * 1000) + (kernel.tick_hz - 1)) / kernel.tick_hz;
 }
 
-static void ant_handle_task_exec(ant_tcb_t *t) {
-    const uint32_t current_count = ant_get_tick_count();
-    const uint32_t elapsed_count = current_count - t->last_run_count;
-    const uint64_t ms = ant_ticks_to_ms(elapsed_count);
+uint64_t ant_ms_to_ticks(uint64_t ms) {
+    return (ms * kernel.tick_hz) / (1000);
+}
 
-    if (ms >= t->next_run_ms) {
-        t->fn(t->ctx);
-        t->last_run_count = ant_get_tick_count();
+static void ant_handle_task_exec(ant_tcb_t *t) {
+    if (t->next_deadline_ms == ANT_WAITING_FOR_SCHEDULE) {
+        return;
+    }
+
+    const uint32_t current_ms = ant_ticks_to_ms(ant_get_tick_count());
+    if (current_ms >= t->next_deadline_ms) {
+        /* Task must call ant_task_schedule_next before returning */
+        t->next_deadline_ms = ANT_WAITING_FOR_SCHEDULE;
+        t->state = t->fn(t->ctx);
     }
 }
 
@@ -100,12 +105,25 @@ void ant_run() {
     }
 }
 
-void ant_task_schedule_next(uint32_t c) {
+void ant_task_schedule_next(uint32_t ms) {
     if (kernel.active_task_idx >= kernel.current_task_count) {
         return;
     }
 
-    kernel.tasks[kernel.active_task_idx].next_run_ms = c;
+    ant_tcb_t *t = &kernel.tasks[kernel.active_task_idx];
+    uint32_t now = ant_ticks_to_ms(ant_get_tick_count());
+
+    if (t->next_deadline_ms == ANT_WAITING_FOR_SCHEDULE || t->next_deadline_ms == 0) {
+        t->next_deadline_ms = now + ms;
+    }
+    else {
+        t->next_deadline_ms += ms;
+    }
+
+    /* If there was a large delay before this task then resync the deadline */
+    if (t->next_deadline_ms < now) {
+        t->next_deadline_ms = now + ms;
+    }
 }
 
 uint64_t ant_get_tick_count() {
