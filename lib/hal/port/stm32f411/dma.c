@@ -55,6 +55,8 @@ static int32_t dma_to_pool_idx(DMA_TypeDef *dma, DMA_Stream_TypeDef *stream) {
     if (pool_idx >= DMA_TOTAL_CONTEXTS) {
         return DMA_ERR_INVALID_DMA_MAP;
     }
+
+    return pool_idx;
 }
 
 static dma_ctx_t* get_dma_context(DMA_TypeDef *dma, DMA_Stream_TypeDef *stream) {
