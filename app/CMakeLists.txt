@@ -1,3 +1,4 @@
+set(EXECUTABLE app.elf)
 
 add_executable(${EXECUTABLE}
     src/main.c
