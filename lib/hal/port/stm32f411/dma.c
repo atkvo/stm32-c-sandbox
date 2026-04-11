@@ -29,6 +29,7 @@ static pool_manager_t dma_pool = POOL_MGR_INIT(dma_contexts, dma_ctx_t, DMA_TOTA
 enum {
     DMA_ERR_INVALID_DMA_MAP = -1,
 };
+
 static int32_t dma_to_pool_idx(DMA_TypeDef *dma, DMA_Stream_TypeDef *stream) {
     int32_t dma_idx = 0;
     uint32_t base_stream = 0;

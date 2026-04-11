@@ -8,12 +8,14 @@
 #include "gpio.h"
 #include "i2c.h"
 #include "platform.h"
+#include "si7021.h"
 #include "slice.h"
 #include "ssd1306.h"
 #include "string.h"
 #include "task_button.h"
 #include "task_display.h"
 #include "task_heartbeat.h"
+#include "task_sensor.h"
 #include "timer.h"
 
 enum {
@@ -108,6 +110,7 @@ int main()
 
     ssd1306_handle_t oled_handle = ssd1306_handle_create(
             &oled_ctx,
+
             i2c_prop.handle,
             DISP_ADDR_ONE_TONE,
             (ssd1306_display_info_t) {
@@ -126,6 +129,11 @@ int main()
 
     fb_clear(oled_handle->ram);
 
+    // init sensor
+    si7021_ctx_t sensor_ctx;
+    si7021_handle_t sensor_handle = si7021_handle_create(&sensor_ctx, i2c_prop.handle);
+    sensor_task_ctx_t task_sensor_ctx = task_sensor_create_ctx(sensor_handle);
+
     enum {
         PULSE_FAST = 100000,
         PULSE_SLOW = 800000,
@@ -139,6 +147,7 @@ int main()
 
     task_display_ctx_t ctx_display = task_display_create_ctx(oled_handle);
     ctx_display.press_count = &button_ctx.press_count;
+    ctx_display.humidity = &task_sensor_ctx.humidity;
 
     app_os_timer = timer_take(APP_OS_TIMER_NUM);
     if (app_os_timer == NULL) {
@@ -163,9 +172,12 @@ int main()
         FATAL();
     }
 
-    ant_register_task((ant_task_t)&task_display, &ctx_display);
     ant_register_task((ant_task_t)&task_heartbeat, &hb_ctx);
     ant_register_task((ant_task_t)&task_read_button, &button_ctx);
+    // @note: task_sensor_ctx wasn't passed previously
+    // after fix it's still hanging even tho logic shows the pulses
+    ant_register_task((ant_task_t)&task_sensor, &task_sensor_ctx); // this was confusing.. prevent this error
+    ant_register_task((ant_task_t)&task_display, &ctx_display);
 
     ant_run();
 

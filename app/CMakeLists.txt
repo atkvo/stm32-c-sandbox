@@ -5,6 +5,7 @@ add_executable(${EXECUTABLE}
     src/tasks/task_button.c
     src/tasks/task_display.c
     src/tasks/task_heartbeat.c
+    src/tasks/task_sensor.c
     src/port/stm32f411_port.c
 )
 
@@ -17,6 +18,7 @@ target_link_libraries(${EXECUTABLE} PUBLIC
     stm32f411
     hal
     ssd1306
+    si7021
     antos
 )
 
