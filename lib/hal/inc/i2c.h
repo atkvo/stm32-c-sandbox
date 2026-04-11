@@ -25,20 +25,13 @@ void i2c_release(i2c_handle_t);
 void i2c_init(i2c_handle_t handle, gpio_pin_handle_t scl, gpio_pin_handle_t sda);
 
 /**
- * @brief Simple byte write to a device register
- */
-void i2c_write_reg(i2c_handle_t handle, uint8_t dev_addr, uint8_t reg_addr, uint8_t data);
-
-/**
- * @brief Simple byte read from a device register
- */
-uint8_t i2c_read_reg(i2c_handle_t handle, uint8_t dev_addr, uint8_t reg_addr);
-
-/**
  * @brief Burst read/write
  */
+// @todo: remove the reg_addr parameter
 void i2c_burst_write(i2c_handle_t handle, uint8_t dev_addr, uint8_t reg_addr, slice_t data);
-void i2c_burst_read(i2c_handle_t handle, uint8_t dev_addr, uint8_t reg_addr, slice_mutable_t data);
+void i2c_burst_read(i2c_handle_t handle, uint8_t dev_addr, slice_mutable_t data);
+
+void i2c_burst_write_read(i2c_handle_t handle, uint8_t dev_addr, slice_t write_data, slice_mutable_t read_data);
 
 // @todo: should this take a callback to handle completion?
 void i2c_burst_write_nb(i2c_handle_t handle, uint8_t dev_addr, uint8_t reg_addr, slice_t data);

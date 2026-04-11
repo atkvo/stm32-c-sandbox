@@ -24,6 +24,8 @@ static inline void i2c_write(i2c_handle_t, uint8_t data);
 static inline bool i2c_read_byte(i2c_handle_t, uint8_t *out);
 static inline void i2c_ack_enable(i2c_handle_t);
 static inline void i2c_ack_disable(i2c_handle_t);
+static inline bool i2c_busy(i2c_handle_t);
+static void i2c_read_step(i2c_handle_t handle, uint8_t dev_addr, slice_mutable_t read_data);
 
 #define I2C_MAX_INSTANCES (3)
 static struct i2c_ctx i2c_pool_mem[I2C_MAX_INSTANCES];
@@ -117,35 +119,6 @@ void i2c_init(i2c_handle_t handle, gpio_pin_handle_t scl, gpio_pin_handle_t sda)
 }
 
 /**
- * @brief Simple byte write to a device register
- */
-void i2c_write_reg(i2c_handle_t handle, uint8_t dev_addr, uint8_t reg_addr, uint8_t data) {
-    if (handle == NULL) {
-        return;
-    }
-    i2c_start(handle);
-    i2c_addr_wait(handle, dev_addr, false);
-    i2c_addr_flag_clear(handle);
-    i2c_write(handle, reg_addr);
-    i2c_write(handle, data);
-    i2c_stop(handle);
-}
-
-/**
- * @brief Simple byte read from a device register
- */
-uint8_t i2c_read_reg(i2c_handle_t handle, uint8_t dev_addr, uint8_t reg_addr) {
-    if (handle == NULL) {
-        return 0;
-    }
-
-    uint8_t data;
-    i2c_burst_read(handle, dev_addr, reg_addr, (slice_mutable_t) { .ptr = &data, .len = 1});
-    return data;
-
-}
-
-/**
  * @brief Burst write
  */
 void i2c_burst_write(i2c_handle_t handle, uint8_t dev_addr, uint8_t reg_addr, slice_t data) {
@@ -171,6 +144,10 @@ void i2c_burst_write_nb(i2c_handle_t handle, uint8_t dev_addr, uint8_t reg_addr,
         return;
     }
 
+    if (i2c_busy(handle)) {
+        return;
+    }
+
     dma_handle_t h = dma_stream_take(DMA_REQ_I2C1_TX);
     if (h == NULL) {
         return;
@@ -187,54 +164,51 @@ void i2c_burst_write_nb(i2c_handle_t handle, uint8_t dev_addr, uint8_t reg_addr,
             (const uint32_t*)data.ptr,
             (uint32_t*)&handle->reg_ptr->DR,
             data.len);
+
+    /* asynchronous execution - will mark handle not busy on callback */
 }
 
-/**
- * @brief Burst read
- */
-void i2c_burst_read(i2c_handle_t handle, uint8_t dev_addr, uint8_t reg_addr, slice_mutable_t data) {
+void i2c_burst_write_read(i2c_handle_t handle, uint8_t dev_addr, slice_t write_data, slice_mutable_t read_data) {
     if (handle == NULL) {
+        return;
+    }
+
+    if (i2c_busy(handle)) {
+        return;
+    }
+
+    if (read_data.len == 0) {
         return;
     }
 
     i2c_start(handle);
     i2c_addr_wait(handle, dev_addr, false);
     i2c_addr_flag_clear(handle);
-    i2c_write(handle, reg_addr);
 
-    i2c_start(handle);
-    i2c_addr_wait(handle, dev_addr, true);
-    // address flag cleared based on number of bytes read
-
-    if (data.len == 1) {
-        // Special case for single byte - must disable the ACK
-        // before clearing the address flag to prevent extra
-        // data bytes from slave
-        i2c_ack_disable(handle);
-        i2c_addr_flag_clear(handle);
-        i2c_stop_no_wait(handle);
-        i2c_read_byte(handle, &data.ptr[0]);
-    }
-    else {
-        i2c_addr_flag_clear(handle);
-        for (uint16_t i = 0; i < data.len; i++) {
-            if (i == (data.len - 1)) {
-                // @note this would be repeated for 1 byte read also,
-                // but should not be an issue
-                i2c_ack_disable(handle);
-                i2c_stop(handle);
-            }
-
-            i2c_read_byte(handle, &data.ptr[i]);
-        }
+    for (uint32_t i = 0; i < write_data.len; i++) {
+        i2c_write(handle, write_data.ptr[i]);
     }
 
-    i2c_ack_enable(handle);
+    i2c_read_step(handle, dev_addr, read_data);
+}
+
+/**
+ * @brief Burst read
+  */
+void i2c_burst_read(i2c_handle_t handle, uint8_t dev_addr, slice_mutable_t data) {
+    if ((handle == NULL) || (i2c_busy(handle))) {
+        return;
+    }
+
+    if (data.len == 0) {
+        return;
+    }
+
+    i2c_read_step(handle, dev_addr, data);
 }
 
 static inline void i2c_start(i2c_handle_t h)
 {
-    while (h->reg_ptr->SR2 & I2C_SR2_BUSY);
     h->reg_ptr->CR1 |= I2C_CR1_START;
     while (!(h->reg_ptr->SR1 & I2C_SR1_SB));
 }
@@ -292,3 +266,50 @@ static void i2c_dma_handler(void *data) {
     }
 }
 
+static inline bool i2c_busy(i2c_handle_t h) {
+    return (h->reg_ptr->SR2 & I2C_SR2_BUSY) ? true : false;
+}
+
+static void i2c_read_step(i2c_handle_t handle, uint8_t dev_addr, slice_mutable_t read_data) {
+    i2c_start(handle);
+    i2c_addr_wait(handle, dev_addr, true);
+
+    if (read_data.len == 1) {
+        i2c_ack_disable(handle);
+        i2c_addr_flag_clear(handle);
+        i2c_stop(handle);
+
+        while (!(handle->reg_ptr->SR1 & I2C_SR1_BTF));
+        read_data.ptr[0] = handle->reg_ptr->DR;
+    }
+    else if (read_data.len == 2) {
+        handle->reg_ptr->CR1 |= I2C_CR1_POS;
+        i2c_ack_disable(handle);
+        i2c_addr_flag_clear(handle);
+
+        while (!(handle->reg_ptr->SR1 & I2C_SR1_BTF));
+        i2c_stop(handle);
+        read_data.ptr[0] = handle->reg_ptr->DR;
+        read_data.ptr[1] = handle->reg_ptr->DR;
+
+        handle->reg_ptr->CR1 &= ~I2C_CR1_POS;
+    }
+    else {
+        uint32_t remain = read_data.len;
+        uint32_t i = 0;
+        while (remain > 3) {
+            while (!(handle->reg_ptr->SR1 & I2C_SR1_BTF));
+            read_data.ptr[i++] = handle->reg_ptr->DR;
+            remain--;
+        }
+
+        while (!(handle->reg_ptr->SR1 & I2C_SR1_BTF));
+        i2c_ack_disable(handle);
+        read_data.ptr[i++] = handle->reg_ptr->DR;
+
+        while (!(handle->reg_ptr->SR1 & I2C_SR1_BTF));
+        i2c_stop(handle);
+        read_data.ptr[i++] = handle->reg_ptr->DR;
+        read_data.ptr[i++] = handle->reg_ptr->DR;
+    }
+}
