@@ -12,6 +12,11 @@
 typedef struct i2c_ctx {
     volatile I2C_TypeDef* reg_ptr;
     uint8_t periph_idx;
+    struct {
+        const slice_t *slice;
+        size_t remaining;
+        dma_handle_t dma;
+    } pending;
 } i2c_ctx_t;
 
 static void i2c_dma_handler(void *data);
@@ -20,7 +25,7 @@ static inline void i2c_stop(i2c_handle_t);
 static inline void i2c_stop_no_wait(i2c_handle_t);
 static inline void i2c_addr_wait(i2c_handle_t, uint8_t address, bool is_read);
 static inline void i2c_addr_flag_clear(i2c_handle_t h);
-static inline void i2c_write(i2c_handle_t, uint8_t data);
+static inline void i2c_put(i2c_handle_t, uint8_t data);
 static inline bool i2c_read_byte(i2c_handle_t, uint8_t *out);
 static inline void i2c_ack_enable(i2c_handle_t);
 static inline void i2c_ack_disable(i2c_handle_t);
@@ -121,7 +126,7 @@ void i2c_init(i2c_handle_t handle, gpio_pin_handle_t scl, gpio_pin_handle_t sda)
 /**
  * @brief Burst write
  */
-void i2c_burst_write(i2c_handle_t handle, uint8_t dev_addr, uint8_t reg_addr, slice_t data) {
+void i2c_write_v(i2c_handle_t handle, uint8_t dev_addr, const slice_t* slices, size_t num_slices) {
     if (handle == NULL) {
         return;
     }
@@ -129,17 +134,19 @@ void i2c_burst_write(i2c_handle_t handle, uint8_t dev_addr, uint8_t reg_addr, sl
     i2c_start(handle);
     i2c_addr_wait(handle, dev_addr, false);
     i2c_addr_flag_clear(handle);
-    i2c_write(handle, reg_addr);
 
-    for (uint32_t i = 0; i < data.len; i++)
-    {
-        i2c_write(handle, data.ptr[i]);
+    for (uint32_t slice_idx = 0; slice_idx < num_slices; slice_idx++) {
+        slice_t data = slices[slice_idx];
+        for (uint32_t i = 0; i < data.len; i++)
+        {
+            i2c_put(handle, data.ptr[i]);
+        }
     }
 
     i2c_stop(handle);
 }
 
-void i2c_burst_write_nb(i2c_handle_t handle, uint8_t dev_addr, uint8_t reg_addr, slice_t data) {
+void i2c_write_v_nb(i2c_handle_t handle, uint8_t dev_addr, const slice_t* slices, size_t num_slices) {
     if (handle == NULL) {
         return;
     }
@@ -156,19 +163,24 @@ void i2c_burst_write_nb(i2c_handle_t handle, uint8_t dev_addr, uint8_t reg_addr,
     i2c_start(handle);
     i2c_addr_wait(handle, dev_addr, false);
     i2c_addr_flag_clear(handle);
-    i2c_write(handle, reg_addr);
+
+
+    /* kick off the first slice, pending slices will be sent when DMA is done */
+    handle->pending.slice = slices;
+    handle->pending.remaining  = num_slices - 1;
+    handle->pending.dma = h;
 
     dma_configure(h, NULL);
     dma_register_callback(h, i2c_dma_handler, handle);
     dma_start(h,
-            (const uint32_t*)data.ptr,
+            (const uint32_t*)slices[0].ptr,
             (uint32_t*)&handle->reg_ptr->DR,
-            data.len);
+            slices[0].len);
 
     /* asynchronous execution - will mark handle not busy on callback */
 }
 
-void i2c_burst_write_read(i2c_handle_t handle, uint8_t dev_addr, slice_t write_data, slice_mutable_t read_data) {
+void i2c_write_read(i2c_handle_t handle, uint8_t dev_addr, slice_t write_data, slice_mutable_t read_data) {
     if (handle == NULL) {
         return;
     }
@@ -186,7 +198,7 @@ void i2c_burst_write_read(i2c_handle_t handle, uint8_t dev_addr, slice_t write_d
     i2c_addr_flag_clear(handle);
 
     for (uint32_t i = 0; i < write_data.len; i++) {
-        i2c_write(handle, write_data.ptr[i]);
+        i2c_put(handle, write_data.ptr[i]);
     }
 
     i2c_read_step(handle, dev_addr, read_data);
@@ -195,7 +207,7 @@ void i2c_burst_write_read(i2c_handle_t handle, uint8_t dev_addr, slice_t write_d
 /**
  * @brief Burst read
   */
-void i2c_burst_read(i2c_handle_t handle, uint8_t dev_addr, slice_mutable_t data) {
+void i2c_read(i2c_handle_t handle, uint8_t dev_addr, slice_mutable_t data) {
     if ((handle == NULL) || (i2c_busy(handle))) {
         return;
     }
@@ -245,7 +257,7 @@ static inline void i2c_addr_flag_clear(i2c_handle_t h)
     (void)h->reg_ptr->SR2;
 }
 
-static inline void i2c_write(i2c_handle_t h, uint8_t data)
+static inline void i2c_put(i2c_handle_t h, uint8_t data)
 {
     while (!(h->reg_ptr->SR1 & (I2C_SR1_TXE)));
     h->reg_ptr->DR = data;
@@ -262,7 +274,17 @@ static inline bool i2c_read_byte(i2c_handle_t h, uint8_t *out) {
 static void i2c_dma_handler(void *data) {
     if (data) {
         i2c_handle_t h = (i2c_handle_t)data;
-        i2c_stop(h);
+        if (h->pending.remaining) {
+            h->pending.slice++;
+            h->pending.remaining--;
+            dma_start(h->pending.dma,
+                    (const uint32_t*)h->pending.slice->ptr,
+                    (uint32_t*)&h->reg_ptr->DR,
+                    h->pending.slice->len);
+        }
+        else {
+            i2c_stop(h);
+        }
     }
 }
 

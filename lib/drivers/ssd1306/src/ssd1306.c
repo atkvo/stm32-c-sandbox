@@ -3,10 +3,10 @@
 #include <stdint.h>
 #include "ssd1306.h"
 
-enum stream_types {
+typedef enum stream_types {
     STREAM_TYPE_CMD = 0x0,
     STREAM_TYPE_DATA = 0x40,
-};
+} stream_types_t;
 
 // @todo: list all command codes
 enum cmd_codes {
@@ -37,12 +37,19 @@ enum cmd_codes {
 
 };
 
-static inline void send_cmd(ssd1306_handle_t handle, slice_t cmd) {
+static inline void send_stream(ssd1306_handle_t handle, stream_types_t type, slice_t cmd) {
     // @info This function assumes handle has already been validated
-    i2c_burst_write(handle->i2c,
+    const uint8_t stream_type = type;
+
+    slice_t chain[2] = {
+        { .ptr = &stream_type, .len = 1 },
+        cmd,
+    };
+
+    i2c_write_v(handle->i2c,
             handle->dev_addr,
-            STREAM_TYPE_CMD,
-            cmd);
+            chain,
+            2);
 }
 
 ssd1306_handle_t ssd1306_handle_create(
@@ -110,7 +117,8 @@ void ssd1306_init(ssd1306_handle_t handle) {
         CMD_DISPLAY_ON, // Set display On
     };
 
-    send_cmd(handle,
+    send_stream(handle,
+            STREAM_TYPE_CMD,
             (slice_t) {
                 .ptr = init_stream,
                 .len = sizeof(init_stream)
@@ -127,11 +135,7 @@ static inline void reset_cursor(ssd1306_handle_t h) {
         (h->disp_info.rows / 8) - 1,
     };
 
-    i2c_burst_write(
-        h->i2c,
-        h->dev_addr,
-        STREAM_TYPE_CMD,
-        (slice_t) { .ptr = reset_cursor, .len = sizeof(reset_cursor) });
+    send_stream(h, STREAM_TYPE_CMD, slice_view(reset_cursor, sizeof(reset_cursor)));
 }
 
 void ssd1306_update(ssd1306_handle_t h) {
@@ -141,11 +145,7 @@ void ssd1306_update(ssd1306_handle_t h) {
 
     reset_cursor(h);
 
-    i2c_burst_write(
-        h->i2c,
-        h->dev_addr,
-        STREAM_TYPE_DATA,
-        (slice_t) { .ptr = h->ram.ptr, .len = h->ram.len });
+    send_stream(h, STREAM_TYPE_DATA, slice_view(h->ram.ptr, h->ram.len));
 }
 
 void ssd1306_update_nb(ssd1306_handle_t h) {
@@ -155,11 +155,7 @@ void ssd1306_update_nb(ssd1306_handle_t h) {
 
     reset_cursor(h);
 
-    i2c_burst_write_nb(
-        h->i2c,
-        h->dev_addr,
-        STREAM_TYPE_DATA,
-        (slice_t) { .ptr = h->ram.ptr, .len = h->ram.len });
+    send_stream(h, STREAM_TYPE_DATA, slice_view(h->ram.ptr, h->ram.len));
 }
 
 void ssd1306_display_state_set(ssd1306_handle_t h, bool on) {
@@ -167,7 +163,7 @@ void ssd1306_display_state_set(ssd1306_handle_t h, bool on) {
         on ? CMD_DISPLAY_ON : CMD_DISPLAY_OFF,
     };
 
-    send_cmd(h, (slice_t) { .ptr = cmd, .len = sizeof(cmd) });
+    send_stream(h, STREAM_TYPE_CMD, (slice_t) { .ptr = cmd, .len = sizeof(cmd) });
 }
 
 void ssd1306_scroll_state_set(ssd1306_handle_t h, bool on) {
@@ -175,11 +171,7 @@ void ssd1306_scroll_state_set(ssd1306_handle_t h, bool on) {
         on ? CMD_SCROLL_ACTIVATE : CMD_SCROLL_DEACTIVATE,
     };
 
-    i2c_burst_write(
-        h->i2c,
-        h->dev_addr,
-        STREAM_TYPE_CMD,
-        (slice_t) { .ptr = cmd, .len = sizeof(cmd) });
+    send_stream(h, STREAM_TYPE_CMD, (slice_t) { .ptr = cmd, .len = sizeof(cmd) });
 }
 
 void ssd1306_scroll_mode_set(ssd1306_handle_t h, ssd1306_scroll_dir_t dir) {
@@ -193,9 +185,5 @@ void ssd1306_scroll_mode_set(ssd1306_handle_t h, ssd1306_scroll_dir_t dir) {
         dir + CMD_SCROLL_HORIZONTAL_L
     };
 
-    i2c_burst_write(
-        h->i2c,
-        h->dev_addr,
-        STREAM_TYPE_CMD,
-        (slice_t) { .ptr = cmd, .len = sizeof(cmd) });
+    send_stream(h, STREAM_TYPE_CMD, (slice_t) { .ptr = cmd, .len = sizeof(cmd) });
 }

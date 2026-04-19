@@ -35,7 +35,7 @@ uint32_t si7021_humid_get(si7021_handle_t h) {
     };
 
     uint8_t read_data[2];
-    i2c_burst_write_read(
+    i2c_write_read(
             h->i2c,
             SI7021_DEV_ADDRESS,
             slice_view(write_data, sizeof(write_data)),

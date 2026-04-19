@@ -25,13 +25,38 @@ void i2c_release(i2c_handle_t);
 void i2c_init(i2c_handle_t handle, gpio_pin_handle_t scl, gpio_pin_handle_t sda);
 
 /**
- * @brief Burst read/write
+ * @brief Chained/Vector write. Useful for [Command + Data] without copying.
+ * This is your "Master" write function.
  */
-// @todo: remove the reg_addr parameter
-void i2c_burst_write(i2c_handle_t handle, uint8_t dev_addr, uint8_t reg_addr, slice_t data);
-void i2c_burst_read(i2c_handle_t handle, uint8_t dev_addr, slice_mutable_t data);
+void i2c_write_v(i2c_handle_t handle, uint8_t dev_addr, const slice_t* slices, size_t num_slices);
 
-void i2c_burst_write_read(i2c_handle_t handle, uint8_t dev_addr, slice_t write_data, slice_mutable_t read_data);
+/**
+ * @brief Standard block write. Wraps i2c_write_v.
+ */
+static inline void i2c_write(i2c_handle_t handle, uint8_t dev_addr, slice_t data) {
+    i2c_write_v(handle, dev_addr, &data, 1);
+}
 
-// @todo: should this take a callback to handle completion?
-void i2c_burst_write_nb(i2c_handle_t handle, uint8_t dev_addr, uint8_t reg_addr, slice_t data);
+/**
+ * @brief Standard block read.
+ */
+void i2c_read(i2c_handle_t handle, uint8_t dev_addr, slice_mutable_t data);
+
+/**
+ * @brief Combined Write then Read (Repeated Start).
+ * Perfect for register reads: i2c_write_read(h, addr, {&reg, 1}, {&rx, 1});
+ */
+void i2c_write_read(i2c_handle_t handle, uint8_t dev_addr, slice_t write_data, slice_mutable_t read_data);
+
+/**
+ * @brief Standard block write. Non-blocking.
+ * @todo: add callback handler parameter
+ */
+void i2c_write_v_nb(i2c_handle_t handle, uint8_t dev_addr, const slice_t* slices, size_t num_slices);
+
+/**
+ * @brief Standard block write. Wraps i2c_write_v_nb. Non-blocking.
+ */
+static void i2c_write_nb(i2c_handle_t handle, uint8_t dev_addr, slice_t data) {
+    i2c_write_v_nb(handle, dev_addr, &data, 1);
+}
