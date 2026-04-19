@@ -29,6 +29,7 @@ ant_task_status_t task_display(task_display_ctx_t *ctx) {
     draw_stat(ctx->disp->ram, 1, "count", ctx->count);
     draw_stat(ctx->disp->ram, 2, "press", *ctx->press_count);
     draw_stat(ctx->disp->ram, 3, "humid", *ctx->humidity);
+    draw_stat(ctx->disp->ram, 4, "temp", *ctx->temperature);
 
     ctx->count++;
 

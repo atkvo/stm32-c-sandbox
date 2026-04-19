@@ -10,6 +10,7 @@ typedef struct task_display_ctx {
     uint8_t count;
     const uint32_t *press_count;
     const uint32_t *humidity;
+    const uint32_t *temperature;
 } task_display_ctx_t;
 
 ant_task_status_t task_display(task_display_ctx_t *ctx);

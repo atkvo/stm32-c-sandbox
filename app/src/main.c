@@ -132,7 +132,7 @@ int main()
     // init sensor
     si7021_ctx_t sensor_ctx;
     si7021_handle_t sensor_handle = si7021_handle_create(&sensor_ctx, i2c_prop.handle);
-    sensor_task_ctx_t task_sensor_ctx = task_sensor_create_ctx(sensor_handle);
+    task_sensor_ctx_t task_sensor_ctx = task_sensor_create_ctx(sensor_handle);
 
     enum {
         PULSE_FAST = 100000,
@@ -148,6 +148,7 @@ int main()
     task_display_ctx_t ctx_display = task_display_create_ctx(oled_handle);
     ctx_display.press_count = &button_ctx.press_count;
     ctx_display.humidity = &task_sensor_ctx.humidity;
+    ctx_display.temperature = &task_sensor_ctx.temperature;
 
     app_os_timer = timer_take(APP_OS_TIMER_NUM);
     if (app_os_timer == NULL) {
